@@ -2,7 +2,7 @@
 app/python/
 app/dependencies_layer.zip
 app/app_package.zip
-**/.terraform/*
+**/.terraform/
 *.tfstate
 *.tfstate.*
 .terraformrc

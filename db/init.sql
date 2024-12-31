@@ -1,0 +1,23 @@
+-- Creates database
+CREATE DATABASE counter_db;
+
+-- Connect to the database
+\c counter_db;
+
+-- Creates counter table if not exists
+CREATE TABLE IF NOT EXISTS counter (
+    id SERIAL PRIMARY KEY,
+    value INT NOT NULL
+);
+
+-- Creates user and grants rights
+CREATE ROLE user_db WITH LOGIN PASSWORD 'password';
+GRANT SELECT, UPDATE ON TABLE counter TO user_db;
+
+-- Inserts initial value into counter table
+INSERT INTO counter (value) VALUES (0)
+ON CONFLICT DO NOTHING; -- Avoids duplicate entries
+
+-- Creates IAM user for AWS
+CREATE USER iam_user WITH LOGIN;
+GRANT rds_iam TO iam_user;

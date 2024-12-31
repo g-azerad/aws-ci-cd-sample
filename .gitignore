@@ -1,3 +1,14 @@
+# Custom part
+app/python/
+app/dependencies_layer.zip
+app/app_package.zip
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraformrc
+.aws/
+archive/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

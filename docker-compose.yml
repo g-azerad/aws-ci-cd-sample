@@ -1,0 +1,46 @@
+services:
+  api:
+    image: counter-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api
+    stop_signal: SIGINT
+    ports:
+      - "5000:5000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: userdb
+      DB_PASSWORD: password
+      DB_NAME: counter_db
+      DEBUG_MODE: true
+    depends_on:
+      - db
+    networks:
+      - app_network
+
+  db:
+    image: postgres:17.2
+    container_name: db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      DB_USER: userdb
+      DB_PASSWORD: password
+      DB_NAME: counter_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init-user-db.sh:/docker-entrypoint-initdb.d/1-init-user-db.sh:ro
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+volumes:
+  db_data:
+
+networks:
+  app_network:
+    driver: bridge

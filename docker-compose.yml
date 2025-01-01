@@ -38,8 +38,32 @@ services:
     networks:
       - app_network
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.49.1-noble
+    container_name: playwright-tests
+    working_dir: /app
+    volumes:
+      - ./playwright/tests:/app/tests
+      - ./playwright/run-tests.sh:/app/run-tests.sh
+      - ./playwright/package.json:/app/package.json
+      - ./playwright/package-lock.json:/app/package-lock.json
+      - playwright_node_modules:/app/node_modules
+      - playwright_cache:/app/.cache/ms-playwright
+    entrypoint: ["/bin/bash", "/app/run-tests.sh"]
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:5000
+      PLAYWRIGHT_BROWSERS_PATH: /app/.cache/ms-playwright
+    networks:
+      - app_network
+    profiles:
+      - donotstart
+
 volumes:
   db_data:
+  playwright_node_modules:
+  playwright_cache:
 
 networks:
   app_network:

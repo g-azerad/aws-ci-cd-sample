@@ -139,7 +139,7 @@ playwright-test:
     - export PGPASSWORD=$POSTGRES_PASSWORD
     - psql -h "db" -U "$POSTGRES_USER" -a -f db/init.sql
     - cd playwright/
-    - ./run-test.sh
+    - ./run-tests.sh
 
 clean-test-docker:
   stage: clean

@@ -104,6 +104,7 @@ gen-docker-test:
   script:
     - IMAGE_TAG=$CI_COMMIT_SHORT_SHA
     - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
+    - echo "$GITLAB_ROOT_CERT" >> /kaniko/ssl/certs/ca-certificates.crt
     - /kaniko/executor
       --context "$CI_PROJECT_DIR"
       --build-arg PYTHON_VERSION=$PYTHON_VERSION

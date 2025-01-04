@@ -63,7 +63,7 @@ stages:
 # Python code linter that outputs to Gitlab CI Code climat format
 pylint:
   stage: lint
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/registry.gitlab.com/pipeline-components/pylint:latest
+  image: registry.gitlab.com/pipeline-components/pylint:latest
   rules:
     - if: $DEPLOY_MODE == "Y"
       when: never
@@ -112,7 +112,7 @@ gen-docker-test:
 
 playwright-test:
   stage: test
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/mcr.microsoft.com/playwright:v1.49.1-noble
+  image: mcr.microsoft.com/playwright:v1.49.1-noble
   rules:
     - if: $DEPLOY_MODE == "Y"
       when: never

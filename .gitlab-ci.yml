@@ -43,7 +43,7 @@ workflow:
   # Latest pipeline : for commits pushed on the main branch
   latest: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-  .changes:
+.changes:
   build:
     - app/*
     - "*.yml"

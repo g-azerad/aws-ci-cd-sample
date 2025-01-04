@@ -125,7 +125,7 @@ playwright-test:
     POSTGRES_HOST_AUTH_METHOD: trust
     DB_HOST: db
     DB_PORT: 5432
-    DB_USER: userdb
+    DB_USER: user_db
     DB_PASSWORD: password
     DB_NAME: counter_db
     API_URL: http://api:5000

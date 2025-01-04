@@ -122,7 +122,7 @@ playwright-test:
   needs: ["gen-docker-test"]
   variables:
     POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
     DB_HOST: db
     DB_PORT: 5432
     DB_USER: userdb
@@ -137,8 +137,10 @@ playwright-test:
   script:
     - apt-get update
     - apt-get install -y --no-install-recommends postgresql-client
-    - export PGPASSWORD=$POSTGRES_PASSWORD
     - psql -h "db" -U "$POSTGRES_USER" -a -f db/init.sql
+    - export PGPASSWORD=$DB_PASSWORD
+    - psql -h "db" -U "$DB_USER" -d $DB_NAME -c "SELECT * FROM counter;"
+    - curl http://api:5000/counter
     - cd playwright/
     - ./run-tests.sh
 

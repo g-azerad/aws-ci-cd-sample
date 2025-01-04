@@ -128,6 +128,7 @@ playwright-test:
     DB_USER: userdb
     DB_PASSWORD: password
     DB_NAME: counter_db
+    API_URL: http://api:5000
   services:
     - name: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/postgres:$POSTGRES_VERSION
       alias: db

@@ -9,6 +9,7 @@ app/app_package.zip
 .aws/
 archive/
 node_modules/
+playwright/test-results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

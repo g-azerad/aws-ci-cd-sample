@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS counter (
 );
 
 -- Creates user and grants rights
-CREATE ROLE user_db WITH LOGIN PASSWORD 'password';
+\set db_password  'password'
+CREATE ROLE user_db WITH LOGIN PASSWORD :'db_password';
 GRANT SELECT, UPDATE ON TABLE counter TO user_db;
 
 -- Inserts initial value into counter table

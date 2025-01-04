@@ -1,0 +1,159 @@
+---
+# Global variables
+variables:
+  PYTHON_VERSION: 3.12
+  KANIKO_VERSION: v1.23.2-debug
+  POSTGRES_VERSION: 17.2
+  REGCTL_VERSION: v0.8.0
+
+# Workflow rules : prevent duplicate pipeline execution
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_TAG
+
+.rules:
+  # Manages CI/CD process for release and release candidate tagging events
+  tag_release:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE != "Y"
+      variables:
+        RELEASE_TYPE: "release"
+  tag_release_candidate:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE != "Y"
+      variables:
+        RELEASE_TYPE: "release_candidate"
+  # Only deploy an existing tagged package from web pipelines
+  deploy_release:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE == "Y"
+      variables:
+        RELEASE_TYPE: "release"
+  deploy_release_candidate:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE == "Y"
+      variables:
+        RELEASE_TYPE: "release_candidate"
+  # For test and push we only give the "if" condition because
+  # we will need to combine it with a "changes" condition
+  # Test pipeline : for commits pushed on a branch
+  test: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+  # Validate pipeline : for merge request events
+  validate: $CI_PIPELINE_SOURCE == "merge_request_event"
+  # Latest pipeline : for commits pushed on the main branch
+  latest: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+  .changes:
+  build:
+    - app/*
+    - "*.yml"
+  package:
+    - Dockerfile
+  database:
+    - db/scripts/**/*
+
+stages:
+  - lint
+  - unit-test
+  - test
+  - clean
+  - package
+  - deploy
+
+# Python code linter that outputs to Gitlab CI Code climat format
+pylint:
+  stage: lint
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/registry.gitlab.com/pipeline-components/pylint:latest
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, test]
+      changes: !reference [.changes, build]
+  script:
+    - pylint --exit-zero --load-plugins=pylint_gitlab --output-format=gitlab-codeclimate:codeclimate.json app/*.py
+  artifacts:
+    reports:
+      codequality: codeclimate.json
+    when: always
+
+# Unit tests with Python unittest library, mocking the database
+unit-test:
+  stage: unit-test
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:$PYTHON_VERSION
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, test]
+      changes: !reference [.changes, build]
+  script:
+    - cd app
+    - pip install -r requirements.txt
+    - python -m unittest -v tests/test_app.py
+
+# Docker image generation to internal repo for test use
+gen-docker-test:
+  stage: test
+  image:
+    name: gcr.io/kaniko-project/executor:$KANIKO_VERSION
+    entrypoint: [""]
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, test]
+      changes: !reference [.changes, build]
+  script:
+    - IMAGE_TAG=$CI_COMMIT_SHORT_SHA
+    - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
+    - /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --build-arg PYTHON_VERSION=$PYTHON_VERSION
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${IMAGE_TAG}"
+
+playwright-test:
+  stage: test
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/mcr.microsoft.com/playwright:v1.49.1-noble
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, test]
+      changes: !reference [.changes, build]
+  needs: ["gen-docker-test"]
+  variables:
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_USER: userdb
+    DB_PASSWORD: password
+    DB_NAME: counter_db
+  services:
+    - name: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/postgres:$POSTGRES_VERSION
+      alias: db
+    - name: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+      alias: api
+  script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends postgresql-client
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - psql -h "db" -U "$POSTGRES_USER" -a -f db/init.sql
+    - cd app/
+    - ./run-test.sh
+
+clean-test-docker:
+  stage: clean
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, test]
+      changes: !reference [.changes, build]
+  variables:
+    IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/alpine:latest
+  script:
+    - apk update
+    - apk add curl
+    - curl --fail-with-body --location "https://github.com/regclient/regclient/releases/download/${REGCTL_VERSION}/regctl-linux-amd64" > /usr/bin/regctl
+    - chmod 755 /usr/bin/regctl
+    - regctl registry login ${CI_REGISTRY} -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
+    - regctl tag rm $IMAGE

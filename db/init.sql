@@ -20,5 +20,5 @@ INSERT INTO counter (value) VALUES (0)
 ON CONFLICT DO NOTHING; -- Avoids duplicate entries
 
 -- Creates IAM user for AWS
-CREATE USER iam_user WITH LOGIN;
+CREATE ROLE iam_user WITH LOGIN;
 GRANT rds_iam TO iam_user;

@@ -11,7 +11,7 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: userdb
+      DB_USER: user_db
       DB_PASSWORD: password
       DB_NAME: counter_db
       DEBUG_MODE: true
@@ -27,7 +27,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      DB_USER: userdb
+      DB_USER: user_db
       DB_PASSWORD: password
       DB_NAME: counter_db
     ports:

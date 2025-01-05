@@ -46,7 +46,8 @@ workflow:
 .changes:
   build:
     - app/*
-    - "*.yml"
+    - .gitlab-ci.yml
+    - Dockerfile
   package:
     - Dockerfile
   database:
@@ -111,6 +112,8 @@ gen-docker-test:
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
       --destination "${CI_REGISTRY_IMAGE}:${IMAGE_TAG}"
 
+# Playwright tests run with the Postgres database
+# and the application as services
 playwright-test:
   stage: test
   image: mcr.microsoft.com/playwright:v1.49.1-noble

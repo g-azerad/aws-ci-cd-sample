@@ -1,4 +1,6 @@
-"""This module sets up an API with a counter relying on a PostgreSQL database"""
+"""
+This module sets up an API with a counter relying on a PostgreSQL database
+"""
 
 import os
 import sys

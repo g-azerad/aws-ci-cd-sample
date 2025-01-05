@@ -71,6 +71,7 @@ pylint:
     - if: !reference [.rules, test]
       changes: !reference [.changes, build]
   script:
+    - pip install -r app/requirements.txt
     - pylint --exit-zero --load-plugins=pylint_gitlab --output-format=gitlab-codeclimate:codeclimate.json app/*.py
   artifacts:
     reports:

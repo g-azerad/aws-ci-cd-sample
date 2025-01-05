@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from app import app
+import psycopg2
 
 class TestApp(unittest.TestCase):
 
@@ -14,7 +15,7 @@ class TestApp(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = mock_conn.cursor.return_value
         mock_cursor.fetchone.return_value = [42]  # Simulates a counter value
-
+        
         mock_get_db_connection.return_value = mock_conn
 
         # Call the API
@@ -90,7 +91,7 @@ class TestApp(unittest.TestCase):
     @patch('app.get_db_connection')
     def test_database_connection_failure(self, mock_get_db_connection):
         # Simulates an error connecting to the database
-        mock_get_db_connection.side_effect = Exception("Database connection error")
+        mock_get_db_connection.side_effect = psycopg2.OperationalError("Simulated database connection error")
 
         # Call the API
         response = self.client.get('/counter')

@@ -1,7 +1,10 @@
+"""This module sets up an API with a counter relying on a PostgreSQL database"""
+
 import os
+import sys
 from flask import Flask, jsonify
 import psycopg2
-from psycopg2.extras import RealDictCursor
+# from psycopg2.extras import RealDictCursor
 import awsgi2
 
 app = Flask(__name__)
@@ -15,15 +18,17 @@ db_config = {
 }
 
 def get_db_connection():
+    """Gets the connection to the PostgreSQL database defined by db_config variable."""
     return psycopg2.connect(**db_config)
-    
+
 def set_db_conn_cursor():
     """Sets the database connection and the cursor."""
     try:
         conn = get_db_connection()
         # cursor_factory=RealDictCursor
         cursor = conn.cursor()
-    except Exception as e:
+    except psycopg2.Error as e:
+        print(e, file=sys.stderr)
         return None, None, False
     return conn, cursor, True
 
@@ -36,7 +41,8 @@ def get_counter():
     try:
         cursor.execute('SELECT value FROM counter WHERE id = 1')
         counter = cursor.fetchone()
-    except Exception as e:
+    except psycopg2.Error as e:
+        print(e, file=sys.stderr)
         conn.rollback()
         return jsonify({"error": "Counter select query failure"}), 500
     finally:
@@ -56,7 +62,8 @@ def increment_counter():
         cursor.execute('UPDATE counter SET value = value + 1 WHERE id = 1 RETURNING value')
         updated_value = cursor.fetchone()[0]
         conn.commit()
-    except Exception as e:
+    except psycopg2.Error as e:
+        print(e, file=sys.stderr)
         conn.rollback()
         return jsonify({"error": "Counter increment query failure"}), 500
     finally:
@@ -79,7 +86,8 @@ def decrement_counter():
         ''')
         updated_value = cursor.fetchone()[0]
         conn.commit()
-    except Exception as e:
+    except psycopg2.Error as e:
+        print(e, file=sys.stderr)
         conn.rollback()
         return jsonify({"error": "Counter decrement query failure"}), 500
     finally:
@@ -97,7 +105,8 @@ def reset_counter():
         cursor.execute('UPDATE counter SET value = 0 WHERE id = 1 RETURNING value')
         updated_value = cursor.fetchone()[0]
         conn.commit()
-    except Exception as e:
+    except psycopg2.Error as e:
+        print(e, file=sys.stderr)
         conn.rollback()
         return jsonify({"error": "Counter reset query failure"}), 500
     finally:
@@ -112,8 +121,5 @@ def handler(event, context):
 if __name__ == '__main__':
     """Local executor"""
     # Checking if debug mode is enabled
-    if os.getenv('DEBUG_MODE') == "true":
-        debug_mode = True
-    else:
-        debug_mode = False
+    debug_mode = bool(os.getenv('DEBUG_MODE') == "true")
     app.run(host="0.0.0.0", debug=debug_mode)

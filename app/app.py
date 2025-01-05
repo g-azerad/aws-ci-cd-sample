@@ -4,7 +4,6 @@ import os
 import sys
 from flask import Flask, jsonify
 import psycopg2
-# from psycopg2.extras import RealDictCursor
 import awsgi2
 
 app = Flask(__name__)
@@ -25,7 +24,6 @@ def set_db_conn_cursor():
     """Sets the database connection and the cursor."""
     try:
         conn = get_db_connection()
-        # cursor_factory=RealDictCursor
         cursor = conn.cursor()
     except psycopg2.Error as e:
         print(e, file=sys.stderr)

@@ -119,7 +119,7 @@ def handler(event, context):
     return awsgi2.response(app, event, context)
 
 if __name__ == '__main__':
-    """Local executor"""
-    # Checking if debug mode is enabled
+    # Local executor
+    # Setting Flask debug mode from environment variable
     debug_mode = bool(os.getenv('DEBUG_MODE') == "true")
     app.run(host="0.0.0.0", debug=debug_mode)

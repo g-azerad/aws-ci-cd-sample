@@ -2,6 +2,12 @@ variable "environment" {
   type        = string
 }
 
+variable "tf_state_name" {
+  description = "Terraform state name (used by Gitlab CI)"
+  type        = string
+  default     = "primary"
+}
+
 variable "region" {
   description = "AWS region"
   type        = string

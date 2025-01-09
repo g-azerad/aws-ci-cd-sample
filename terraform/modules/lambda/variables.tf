@@ -1,3 +1,9 @@
+variable "region" {
+  description = "AWS region"
+  type        = string
+  default     = "eu-west-3"
+}
+
 variable "api_name" {
   description = "Name of the API"
   type        = string
@@ -62,5 +68,10 @@ variable "db_port" {
 
 variable "db_host" {
   description = "Host address where the database is running"
+  type        = string
+}
+
+variable "api_gateway_execution_arn" {
+  description = "API gateway execution ARN for the Lambda permission"
   type        = string
 }

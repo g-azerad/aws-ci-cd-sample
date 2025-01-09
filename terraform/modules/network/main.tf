@@ -135,3 +135,13 @@ resource "aws_security_group" "bastion_sg" {
     Name = "bastion-sg"
   }
 }
+
+# Endpoint VPC pour accès à Secrets Manager
+resource "aws_vpc_endpoint" "secretsmanager_endpoint" {
+  vpc_id              = aws_vpc.main_vpc.id
+  service_name        = "com.amazonaws.${var.region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = [aws_subnet.public_subnet.id]
+  security_group_ids  = [aws_security_group.instance_sg.id]
+}

@@ -5,6 +5,7 @@ variables:
   KANIKO_VERSION: v1.23.2-debug
   POSTGRES_VERSION: 17.2
   REGCTL_VERSION: v0.8.0
+  IMAGE_NAME: counter-api
 
 # Workflow rules : prevent duplicate pipeline execution
 workflow:
@@ -17,23 +18,13 @@ workflow:
 
 .rules:
   # Manages CI/CD process for release and release candidate tagging events
-  tag_release:
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE != "Y"
-      variables:
-        RELEASE_TYPE: "release"
-  tag_release_candidate:
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE != "Y"
-      variables:
-        RELEASE_TYPE: "release_candidate"
+  tag_release: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE != "Y"
+  tag_release_candidate: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE != "Y"
+  
   # Only deploy an existing tagged package from web pipelines
-  deploy_release:
-    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE == "Y"
-      variables:
-        RELEASE_TYPE: "release"
-  deploy_release_candidate:
-    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE == "Y"
-      variables:
-        RELEASE_TYPE: "release_candidate"
+  deploy_release: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE == "Y"
+  deploy_release_candidate: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE == "Y"
+  
   # For test and push we only give the "if" condition because
   # we will need to combine it with a "changes" condition
   # Test pipeline : for commits pushed on a branch
@@ -45,13 +36,19 @@ workflow:
 
 .changes:
   build:
-    - app/*
+    - app/*.py
+    - app/requirements.txt
     - .gitlab-ci.yml
     - Dockerfile
+  lambda:
+    - app/*.py
+    - app/requirements.txt
   package:
     - Dockerfile
+    - app/*.py
+    - app/requirements.txt
   database:
-    - db/scripts/**/*
+    - db/changelog.sql
 
 stages:
   - lint
@@ -148,6 +145,7 @@ playwright-test:
     - cd playwright/
     - ./run-tests.sh
 
+# Cleaning the previous temporary docker image from Gitlab registry
 clean-test-docker:
   stage: clean
   rules:
@@ -165,3 +163,144 @@ clean-test-docker:
     - chmod 755 /usr/bin/regctl
     - regctl registry login ${CI_REGISTRY} -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD}
     - regctl tag rm $IMAGE
+
+# Package the application and publish it to Docker Hub
+package-docker:
+  stage: package
+  image:
+    name: gcr.io/kaniko-project/executor:$KANIKO_VERSION
+    entrypoint: [""]
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, tag_release_candidate]
+      changes: !reference [.changes, package]
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, package]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, package]
+  script:
+    - if [ X"$CI_COMMIT_TAG" == "X" ]; then IMAGE_TAG="latest"; else IMAGE_TAG=$CI_COMMIT_TAG; fi
+    - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
+    - |-
+      echo "
+      {
+        \"auths\":{
+          \"${DOCKERHUB_REGISTRY}\":{
+            \"auth\":\"$(printf "%s:%s" "${DOCKERHUB_USER}" "${DOCKERHUB_PASSWORD}" | base64 | tr -d '\n')\"
+          }
+        }
+      }" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --build-arg PYTHON_VERSION=$PYTHON_VERSION
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+# Create zip packages to be exported to AWS Lambda
+package-lambda:
+  stage: package
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:$PYTHON_VERSION
+  artifacts:
+    paths:
+      - app/app_package.zip
+      - app/dependencies_layer.zip
+    expire_in: 1 day
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, tag_release_candidate]
+      changes: !reference [.changes, package]
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, package]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, package]
+  script:
+    - cd app
+    - zip app_package.zip app.py
+    - 'pip install --platform manylinux2014_x86_64 --target . --python-version 3.12 --only-binary=:all: -r requirements.txt -t ./python/'
+    - zip -r dependencies_layer.zip python
+
+# Deploy the AWS Lambda
+deploy-app-lambda:
+  stage: deploy
+  image: amazon/aws-cli:latest
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, tag_release_candidate]
+      changes: !reference [.changes, lambda]
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, lambda]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, lambda]
+  script:
+    - echo "Configuring AWS CLI..."
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    # Deploy the dependencies layer
+    - echo "Deploying Lambda layer..."
+    - aws lambda publish-layer-version \
+        --layer-name $LAYER_NAME \
+        --zip-file fileb://app/dependencies_layer.zip \
+        --compatible-runtimes python3.9
+    # Capture the new layer ARN
+    - LAYER_ARN=$(aws lambda list-layer-versions --layer-name $LAYER_NAME --query 'LayerVersions[0].LayerVersionArn' --output text)
+    # Deploy the Lambda function
+    - echo "Deploying Lambda function..."
+    - aws lambda update-function-code \
+        --function-name $FUNCTION_NAME \
+        --zip-file fileb://app/app_package.zip
+    # Update the Lambda function to use the new layer
+    - echo "Updating Lambda function with new layer..."
+    - aws lambda update-function-configuration \
+        --function-name $FUNCTION_NAME \
+        --layers $LAYER_ARN
+
+# Deploy database changes with liquibase
+# Helper functions to determine if the database is ready for deployments (lines 28-33) or rollbacks (lines 35-42) when tag is applied.
+.functions: &functions |
+  function isUpToDate(){
+    status=$(liquibase status --verbose)
+    if [[ $status == *'is up to date'* ]]; then
+      echo "database is already up to date" & exit 0
+    fi;
+  }
+
+  function isRollback(){
+    if [ -z "$TAG" ]; then
+      echo "No TAG provided, running any pending changes"
+    elif [[ "$(liquibase rollbackSQL $TAG)" ]]; then
+      liquibase --logLevel=info --logFile=${CI_JOB_NAME}_${CI_PIPELINE_ID}.log rollback $TAG && exit 0
+    else exit 0
+    fi;
+  }
+
+deploy-db:
+  stage: deploy
+  environment: prod
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/liquibase:latest
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, tag_release_candidate]
+      changes: !reference [.changes, database]
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, database]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, database]
+  script:
+    - *functions
+    - isRollback
+    - isUpToDate
+    - liquibase checks run
+    - liquibase updateSQL
+    - liquibase update
+    - liquibase rollbackOneUpdate --force
+    - liquibase tag $CI_PIPELINE_ID
+    - liquibase --logFile=${CI_JOB_NAME}_${CI_PIPELINE_ID}.log --logLevel=info update
+    - liquibase history
+  artifacts:
+      paths:
+        - ${CI_JOB_NAME}_${CI_PIPELINE_ID}.log
+      expire_in: 1 day

@@ -5,16 +5,17 @@ terraform {
       version = "~> 5.80"
     }
   }
-
+  backend "http" {
+    address        = "https://gitlab.perso.com/api/v4/projects/6/terraform/state/${var.tf_state_name}"
+    lock_address   = "https://gitlab.perso.com/api/v4/projects/6/terraform/state/${var.tf_state_name}/lock"
+    unlock_address = "https://gitlab.perso.com/api/v4/projects/6/terraform/state/${var.tf_state_name}/lock"
+  }
   required_version = ">= 1.10.0"
 }
 
 # Getting AWS provider configuration from variables
 provider "aws" {
   region                   = var.region
-  # shared_config_files      = ["../../../.aws/config"]
-  # shared_credentials_files = ["../../../.aws/credentials"]
-  # profile = var.profile
 }
 
 # Retrieving account information
@@ -74,17 +75,28 @@ module "rds" {
   account_id                 = data.aws_caller_identity.current.account_id
 }
 
+# Creating the API gateway
+module "api_gateway" {
+  source               = "../../../modules/api_gateway"
+  api_name             = "${var.environment}-api"
+  integration_target   = "lambda"
+  lambda_invoke_arn    = module.lambda.lambda_invoke_arn
+  ecs_service_url      = null
+}
+
 # Creating the Lambda to run the API
 module "lambda" {
-  source               = "../../../modules/lambda"
-  api_name             = "${var.environment}-api"
-  public_subnet_id     = module.network.public_subnet_id
-  security_group_id    = module.network.instance_sg_id
-  lambda_zip_file      = var.lambda_zip_file
-  dependencies_package = var.dependencies_package
-  db_user_secret_name  = var.db_user_secret_name
-  db_name              = var.db_name
-  db_username          = var.db_username
-  db_port              = var.db_port
-  db_host              = module.rds.db_endpoint
+  source                    = "../../../modules/lambda"
+  region                    = var.region
+  api_name                  = "${var.environment}-api"
+  public_subnet_id          = module.network.public_subnet_id
+  security_group_id         = module.network.instance_sg_id
+  lambda_zip_file           = var.lambda_zip_file
+  dependencies_package      = var.dependencies_package
+  db_user_secret_name       = var.db_user_secret_name
+  db_name                   = var.db_name
+  db_username               = var.db_username
+  db_port                   = var.db_port
+  db_host                   = module.rds.db_host
+  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
 }

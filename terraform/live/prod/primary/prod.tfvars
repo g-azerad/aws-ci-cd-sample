@@ -1,4 +1,5 @@
 environment                = "prod"
+tf_state_name              = "default"
 profile                    = "prod_admin"
 ssh_public_key             = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPXQTe+bt2/WREsoHZxeR/XcZJwlNTaw55G1L/yMRpy3"
 recovery_window            = 0

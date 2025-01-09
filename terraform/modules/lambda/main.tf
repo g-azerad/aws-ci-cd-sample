@@ -68,7 +68,7 @@ resource "aws_lambda_function" "lambda" {
     variables = {
       FLASK_ENV    = "production"
       DB_USER      = var.db_username
-      DB_PASSWORD  = data.aws_secretsmanager_secret_version.db_user_secret_version.secret_string
+      # DB_PASSWORD  = data.aws_secretsmanager_secret_version.db_user_secret_version.secret_string
       DB_HOST      = var.db_host
       DB_PORT      = var.db_port
       DB_NAME      = var.db_name
@@ -84,33 +84,11 @@ resource "aws_lambda_function_url" "lambda_public_url" {
   authorization_type = "NONE"
 }
 
-resource "aws_apigatewayv2_api" "api_gateway" {
-  name          = var.api_name
-  protocol_type = "HTTP"
-}
-
-resource "aws_apigatewayv2_integration" "api_integration" {
-  api_id           = aws_apigatewayv2_api.api_gateway.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.lambda.invoke_arn
-}
-
-resource "aws_apigatewayv2_route" "api_route" {
-  api_id    = aws_apigatewayv2_api.api_gateway.id
-  route_key = "ANY /{proxy+}"
-  target    = "integrations/${aws_apigatewayv2_integration.api_integration.id}"
-}
-
-resource "aws_apigatewayv2_stage" "api_stage" {
-  api_id      = aws_apigatewayv2_api.api_gateway.id
-  name        = "prod"
-  auto_deploy = true
-}
-
+# Define the lambda permission to interact with the API gateway
 resource "aws_lambda_permission" "api_permission" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.lambda.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.api_gateway.execution_arn}/*"
+  source_arn    = "${var.api_gateway_execution_arn}/*"
 }

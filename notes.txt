@@ -1,0 +1,19 @@
+--------------------------------------------------------------
+
+SSH tunelling :
+
+Host aws-bastion
+        HostName ec2-35-180-79-36.eu-west-3.compute.amazonaws.com
+        User admin
+        LocalForward localhost:5433 terraform-20241231082608981500000006.c1iemigokd06.eu-west-3.rds.amazonaws.com:5432
+        IdentityFile ~/.ssh/id_aws_ed25519_prod
+		
+ssh aws-bastion -N
+
+PGPASSWORD=$RDS_MASTER_USER_PASSWORD psql -h localhost -p 5433 -U postgres -d counter_db
+
+---------------------------------------------------------------
+
+Packaging
+
+pip install --platform manylinux2014_x86_64 --target . --python-version 3.12 --only-binary=:all: -r requirements.txt -t ./python/

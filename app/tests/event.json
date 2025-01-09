@@ -1,0 +1,33 @@
+{
+  "resource": "/{proxy+}",
+  "path": "/counter",
+  "httpMethod": "GET",
+  "headers": {
+    "Accept": "application/json",
+    "Host": "localhost",
+    "X-Forwarded-Proto": "http"
+  },
+  "queryStringParameters": null,
+  "multiValueQueryStringParameters": null,
+  "pathParameters": {
+    "proxy": "counter"
+  },
+  "stageVariables": null,
+  "requestContext": {
+    "resourceId": "xyz",
+    "resourcePath": "/{proxy+}",
+    "httpMethod": "GET",
+    "path": "/prod/counter",
+    "accountId": "123456789012",
+    "stage": "prod",
+    "identity": {
+      "sourceIp": "127.0.0.1",
+      "userAgent": "PostmanRuntime/7.28.0"
+    },
+    "domainName": "localhost",
+    "apiId": "12345"
+  },
+  "body": null,
+  "isBase64Encoded": false
+}
+  

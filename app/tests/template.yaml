@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: python3.12
+      CodeUri: ../
+      Layers:
+        - !Ref MyLayer
+      MemorySize: 128
+      Timeout: 30
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Environment:
+        Variables:
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: user_db
+          DB_NAME: counter_db
+
+  MyLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: MyPythonLayer
+      ContentUri: ../dependencies_layer.zip
+      CompatibleRuntimes:
+        - python3.12

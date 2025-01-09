@@ -78,7 +78,7 @@ pylint:
 # Unit tests with Python unittest library, mocking the database
 unit-test:
   stage: unit-test
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:$PYTHON_VERSION
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:${PYTHON_VERSION}-slim
   rules:
     - if: $DEPLOY_MODE == "Y"
       when: never
@@ -200,7 +200,7 @@ package-docker:
 # Create zip packages to be exported to AWS Lambda
 package-lambda:
   stage: package
-  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:$PYTHON_VERSION
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/python:${PYTHON_VERSION}-slim
   artifacts:
     paths:
       - app/app_package.zip
@@ -216,6 +216,7 @@ package-lambda:
     - if: !reference [.rules, latest]
       changes: !reference [.changes, package]
   script:
+    - apt update && apt install --no-install-recommends -y zip
     - cd app
     - zip app_package.zip app.py
     - 'pip install --platform manylinux2014_x86_64 --target . --python-version 3.12 --only-binary=:all: -r requirements.txt -t ./python/'
@@ -243,7 +244,7 @@ deploy-app-lambda:
     - aws lambda publish-layer-version \
         --layer-name $LAYER_NAME \
         --zip-file fileb://app/dependencies_layer.zip \
-        --compatible-runtimes python3.9
+        --compatible-runtimes python${PYTHON_VERSION}
     # Capture the new layer ARN
     - LAYER_ARN=$(aws lambda list-layer-versions --layer-name $LAYER_NAME --query 'LayerVersions[0].LayerVersionArn' --output text)
     # Deploy the Lambda function

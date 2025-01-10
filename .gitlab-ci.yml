@@ -291,8 +291,9 @@ deploy-app-layer:
 deploy-db:
   stage: deploy
   environment: prod
-  image: ${CI_REGISTRY_IMAGE}:liquibase
-  entrypoint: [""]
+  image: 
+    name: ${CI_REGISTRY_IMAGE}:liquibase
+    entrypoint: [""]
   rules:
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, deploy_db]

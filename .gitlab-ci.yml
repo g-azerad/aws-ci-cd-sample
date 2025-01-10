@@ -282,6 +282,7 @@ deploy-app-layer:
     echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_aws_ed25519_prod
     chmod 600 ~/.ssh/id_aws_ed25519_prod
     echo "$SSH_TUNNEL_CONFIG" >> ~/.ssh/config
+    ls -l ~/.ssh
     cat ~/.ssh/config
     ssh -f -N -L aws-bastion
   }
@@ -291,6 +292,7 @@ deploy-db:
   stage: deploy
   environment: prod
   image: ${CI_REGISTRY_IMAGE}:liquibase
+  entrypoint: [""]
   rules:
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, deploy_db]

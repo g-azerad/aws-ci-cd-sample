@@ -3,8 +3,8 @@ This module sets up an API with a counter relying on a PostgreSQL database
 """
 
 import os
-import boto3
 import sys
+import boto3
 from flask import Flask, jsonify
 import psycopg2
 import awsgi2

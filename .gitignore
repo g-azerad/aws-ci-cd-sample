@@ -11,6 +11,7 @@ archive/
 node_modules/
 playwright/test-results
 .aws-sam/
+ssh/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

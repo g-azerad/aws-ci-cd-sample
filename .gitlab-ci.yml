@@ -284,7 +284,7 @@ deploy-app-layer:
     mv "$SSH_TUNNEL_CONFIG" ~/.ssh/config
     ls -l ~/.ssh
     cat ~/.ssh/config
-    ssh -f -N -L aws-bastion
+    ssh -f aws-bastion -N
   }
 
 # Deploy database changes
@@ -303,7 +303,8 @@ deploy-db:
     - if: !reference [.rules, deploy_latest]
   script:
     - *functions
-    - setupSshTunnel
+    # - setupSshTunnel
+    - ssh -f aws-bastion -N
     - isRollback
     - isUpToDate
     - liquibase checks run

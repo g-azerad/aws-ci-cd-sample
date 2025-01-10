@@ -10,3 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssh-client 
 
 USER liquibase
 WORKDIR /home/liquibase
+
+COPY --chown=liquibase:liquibase ssh/config /home/liquibase/.ssh/
+COPY --chown=liquibase:liquibase ssh/known_hosts /home/liquibase/.ssh/
+COPY --chown=liquibase:liquibase --chmod=600 ssh/id_aws_ed25519_prod /home/liquibase/.ssh/

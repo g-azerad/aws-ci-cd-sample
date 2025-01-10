@@ -22,6 +22,7 @@ workflow:
   tag_release_candidate: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE != "Y"
   
   # Only deploy an existing tagged package from web pipelines
+  deploy_latest: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $DEPLOY_MODE == "Y"
   deploy_release: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/ && $DEPLOY_MODE == "Y"
   deploy_release_candidate: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+-rc\d+$/ && $DEPLOY_MODE == "Y"
   
@@ -40,14 +41,15 @@ workflow:
     - app/requirements.txt
     - .gitlab-ci.yml
     - Dockerfile
-  lambda:
-    - app/*.py
-    - app/requirements.txt
   package:
     - Dockerfile
     - app/*.py
     - app/requirements.txt
-  database:
+  deploy_lambda:
+    - app/*.py
+  deploy_layer:
+    - app/requirements.txt
+  deploy_db:
     - db/changelog.sql
 
 stages:
@@ -173,8 +175,6 @@ package-docker:
   rules:
     - if: $DEPLOY_MODE == "Y"
       when: never
-    - if: !reference [.rules, tag_release_candidate]
-      changes: !reference [.changes, package]
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, package]
     - if: !reference [.rules, latest]
@@ -207,14 +207,12 @@ package-lambda:
       - app/dependencies_layer.zip
     expire_in: 1 day
   rules:
-    - if: $DEPLOY_MODE == "Y"
-      when: never
-    - if: !reference [.rules, tag_release_candidate]
-      changes: !reference [.changes, package]
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, package]
     - if: !reference [.rules, latest]
       changes: !reference [.changes, package]
+    - if: !reference [.rules, deploy_release]
+    - if: !reference [.rules, deploy_latest]
   script:
     - apt update && apt install --no-install-recommends -y zip
     - cd app
@@ -227,14 +225,33 @@ deploy-app-lambda:
   stage: deploy
   image: amazon/aws-cli:latest
   rules:
-    - if: $DEPLOY_MODE == "Y"
-      when: never
-    - if: !reference [.rules, tag_release_candidate]
-      changes: !reference [.changes, lambda]
     - if: !reference [.rules, tag_release]
-      changes: !reference [.changes, lambda]
+      changes: !reference [.changes, deploy_lambda]
     - if: !reference [.rules, latest]
-      changes: !reference [.changes, lambda]
+      changes: !reference [.changes, deploy_lambda]
+    - if: !reference [.rules, deploy_release]
+    - if: !reference [.rules, deploy_latest]
+  script:
+    - echo "Configuring AWS CLI..."
+    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+    # Deploy the Lambda function
+    - echo "Deploying Lambda function..."
+    - aws lambda update-function-code \
+        --function-name $FUNCTION_NAME \
+        --zip-file fileb://app/app_package.zip
+
+# Deploy the AWS Lambda layer
+deploy-app-layer:
+  stage: deploy
+  image: amazon/aws-cli:latest
+  rules:
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, deploy_layer]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, deploy_layer]
+    - if: !reference [.rules, deploy_release]
+    - if: !reference [.rules, deploy_latest]
   script:
     - echo "Configuring AWS CLI..."
     - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
@@ -247,11 +264,6 @@ deploy-app-lambda:
         --compatible-runtimes python${PYTHON_VERSION}
     # Capture the new layer ARN
     - LAYER_ARN=$(aws lambda list-layer-versions --layer-name $LAYER_NAME --query 'LayerVersions[0].LayerVersionArn' --output text)
-    # Deploy the Lambda function
-    - echo "Deploying Lambda function..."
-    - aws lambda update-function-code \
-        --function-name $FUNCTION_NAME \
-        --zip-file fileb://app/app_package.zip
     # Update the Lambda function to use the new layer
     - echo "Updating Lambda function with new layer..."
     - aws lambda update-function-configuration \
@@ -277,23 +289,30 @@ deploy-app-lambda:
     fi;
   }
 
+  function setupSshTunnel(){
+    echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_aws_ed25519_prod
+    chmod 600 ~/.ssh/id_aws_ed25519_prod
+    echo "$SSH_TUNNEL_CONFIG" >> ~/.ssh/config
+    ssh -f -N -L aws-bastion
+  }
+
+# Deploy database changes
 deploy-db:
   stage: deploy
   environment: prod
   image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/liquibase:latest
   rules:
-    - if: $DEPLOY_MODE == "Y"
-      when: never
-    - if: !reference [.rules, tag_release_candidate]
-      changes: !reference [.changes, database]
     - if: !reference [.rules, tag_release]
-      changes: !reference [.changes, database]
+      changes: !reference [.changes, deploy_db]
     - if: !reference [.rules, latest]
-      changes: !reference [.changes, database]
+      changes: !reference [.changes, deploy_db]
+    - if: !reference [.rules, deploy_release]
+    - if: !reference [.rules, deploy_latest]
   script:
     - *functions
     - isRollback
     - isUpToDate
+    - setupSshTunnel
     - liquibase checks run
     - liquibase updateSQL
     - liquibase update

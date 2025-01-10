@@ -45,12 +45,10 @@ db_config = {
     'password': ""
 }
 # Password parameter is set from get_secret function
-db_config['password'] = get_secret()
-if not db_config['password']:
-    @app.before_first_request
-    def stop_startup():
-        # Abort with HTTP 500 and error message
-        return jsonify({"error": "Password retrieval failure"}), 500
+password = get_secret()
+if not password:
+    raise RuntimeError("Password retrieval failure: Unable to start the application.")
+db_config['password'] = password
 
 def get_db_connection():
     """Gets the connection to the PostgreSQL database defined by db_config variable."""

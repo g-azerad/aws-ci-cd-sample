@@ -234,9 +234,7 @@ deploy-app-lambda:
   script:
     # Deploy the Lambda function
     - echo "Deploying Lambda function..."
-    - aws lambda update-function-code \
-        --function-name $FUNCTION_NAME \
-        --zip-file fileb://app/app_package.zip
+    - aws lambda update-function-code --function-name $FUNCTION_NAME --zip-file fileb://app/app_package.zip
 
 # Deploy the AWS Lambda layer
 deploy-app-layer:
@@ -252,17 +250,12 @@ deploy-app-layer:
   script:
     # Deploy the dependencies layer
     - echo "Deploying Lambda layer..."
-    - aws lambda publish-layer-version \
-        --layer-name $LAYER_NAME \
-        --zip-file fileb://app/dependencies_layer.zip \
-        --compatible-runtimes python${PYTHON_VERSION}
+    - aws lambda publish-layer-version --layer-name $LAYER_NAME --zip-file fileb://app/dependencies_layer.zip --compatible-runtimes python${PYTHON_VERSION}
     # Capture the new layer ARN
     - LAYER_ARN=$(aws lambda list-layer-versions --layer-name $LAYER_NAME --query 'LayerVersions[0].LayerVersionArn' --output text)
     # Update the Lambda function to use the new layer
     - echo "Updating Lambda function with new layer..."
-    - aws lambda update-function-configuration \
-        --function-name $FUNCTION_NAME \
-        --layers $LAYER_ARN
+    - aws lambda update-function-configuration --function-name $FUNCTION_NAME --layers $LAYER_ARN
 
 # Deploy database changes with liquibase
 # Helper functions to determine if the database is ready for deployments (lines 28-33) or rollbacks (lines 35-42) when tag is applied.
@@ -284,6 +277,7 @@ deploy-app-layer:
   }
 
   function setupSshTunnel(){
+    mkdir -p ~/.ssh
     echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_aws_ed25519_prod
     chmod 600 ~/.ssh/id_aws_ed25519_prod
     echo "$SSH_TUNNEL_CONFIG" >> ~/.ssh/config

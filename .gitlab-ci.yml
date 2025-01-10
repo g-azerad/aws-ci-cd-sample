@@ -223,7 +223,7 @@ package-lambda:
 # Deploy the AWS Lambda
 deploy-app-lambda:
   stage: deploy
-  image: amazon/aws-cli:latest
+  image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
   rules:
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, deploy_lambda]
@@ -232,9 +232,6 @@ deploy-app-lambda:
     - if: !reference [.rules, deploy_release]
     - if: !reference [.rules, deploy_latest]
   script:
-    - echo "Configuring AWS CLI..."
-    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
     # Deploy the Lambda function
     - echo "Deploying Lambda function..."
     - aws lambda update-function-code \
@@ -244,7 +241,7 @@ deploy-app-lambda:
 # Deploy the AWS Lambda layer
 deploy-app-layer:
   stage: deploy
-  image: amazon/aws-cli:latest
+  image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
   rules:
     - if: !reference [.rules, tag_release]
       changes: !reference [.changes, deploy_layer]
@@ -253,9 +250,6 @@ deploy-app-layer:
     - if: !reference [.rules, deploy_release]
     - if: !reference [.rules, deploy_latest]
   script:
-    - echo "Configuring AWS CLI..."
-    - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-    - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
     # Deploy the dependencies layer
     - echo "Deploying Lambda layer..."
     - aws lambda publish-layer-version \
@@ -310,9 +304,9 @@ deploy-db:
     - if: !reference [.rules, deploy_latest]
   script:
     - *functions
+    - setupSshTunnel
     - isRollback
     - isUpToDate
-    - setupSshTunnel
     - liquibase checks run
     - liquibase updateSQL
     - liquibase update

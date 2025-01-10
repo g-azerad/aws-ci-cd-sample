@@ -281,7 +281,7 @@ deploy-app-layer:
     mkdir -p ~/.ssh
     echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_aws_ed25519_prod
     chmod 600 ~/.ssh/id_aws_ed25519_prod
-    echo "$SSH_TUNNEL_CONFIG" >> ~/.ssh/config
+    mv "$SSH_TUNNEL_CONFIG" ~/.ssh/config
     ls -l ~/.ssh
     cat ~/.ssh/config
     ssh -f -N -L aws-bastion

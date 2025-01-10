@@ -310,7 +310,7 @@ deploy-db:
     - liquibase checks run
     - liquibase updateSQL
     - liquibase update
-    - liquibase rollbackOneUpdate --force
+    # - liquibase rollbackOneUpdate --force # Requires license
     - liquibase tag $CI_PIPELINE_ID
     - liquibase --logFile=${CI_JOB_NAME}_${CI_PIPELINE_ID}.log --logLevel=info update
     - liquibase history

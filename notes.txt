@@ -9,6 +9,7 @@ Host aws-bastion
         IdentityFile ~/.ssh/id_aws_ed25519_prod
 		
 ssh aws-bastion -N
+ssh -f aws-bastion -N
 
 PGPASSWORD=$RDS_MASTER_USER_PASSWORD psql -h localhost -p 5433 -U postgres -d counter_db
 

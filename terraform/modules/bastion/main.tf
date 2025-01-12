@@ -1,11 +1,13 @@
+# Create bastion EC2 VM
 resource "aws_instance" "bastion" {
   ami           = var.ami
   instance_type = var.instance_type
   key_name      = var.key_name
-  subnet_id     = var.subnet_id
-  security_groups = [var.bastion_sg_id]
 
-  associate_public_ip_address = true
+  network_interface {
+    network_interface_id = var.bastion_eni_id
+    device_index         = 0
+  }
 
   tags = {
     Name = var.name

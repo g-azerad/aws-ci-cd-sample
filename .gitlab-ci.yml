@@ -1,12 +1,4 @@
 ---
-# Global variables
-variables:
-  PYTHON_VERSION: 3.12
-  KANIKO_VERSION: v1.23.2-debug
-  POSTGRES_VERSION: 17.2
-  REGCTL_VERSION: v0.8.0
-  IMAGE_NAME: counter-api
-
 # Workflow rules : prevent duplicate pipeline execution
 workflow:
   rules:
@@ -292,7 +284,7 @@ deploy-db:
   stage: deploy
   environment: prod
   image: 
-    name: ${CI_REGISTRY_IMAGE}:liquibase
+    name: ${CI_REGISTRY_IMAGE}/liquibase:latest
     entrypoint: [""]
   rules:
     - if: !reference [.rules, tag_release]

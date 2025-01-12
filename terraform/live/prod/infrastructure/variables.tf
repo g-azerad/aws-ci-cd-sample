@@ -5,7 +5,7 @@ variable "environment" {
 variable "tf_state_name" {
   description = "Terraform state name (used by Gitlab CI)"
   type        = string
-  default     = "primary"
+  default     = "default"
 }
 
 variable "region" {
@@ -14,19 +14,15 @@ variable "region" {
   default     = "eu-west-3"
 }
 
-variable "profile" {
-  description = "AWS CLI profile"
+variable "integration_target" {
+  description = "Integration target for the API gateway (lambda or ecs)"
   type        = string
+  default     = "lambda"
 }
 
 variable "ssh_public_key" {
   description = "The SSH public key to access the EC2 instances."
   type        = string
-}
-
-variable "recovery_window" {
-  description = "Number of days for the recovery window of secrets"
-  type        = number
 }
 
 variable "db_master_user_secret_name" {
@@ -86,4 +82,16 @@ variable "lambda_zip_file" {
 variable "dependencies_package" {
   description = "Lambda dependencies package zip file location"
   type        = string
+}
+
+variable "image_name" {
+  description = "API Docker Hub image name"
+  type        = string
+  default     = "counter-api"
+}
+
+variable "image_tag" {
+  description = "API Docker Hub image tag"
+  type        = string
+  default     = "latest"
 }

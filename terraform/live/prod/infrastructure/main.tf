@@ -55,6 +55,7 @@ module "bastion" {
   bastion_sg_id     = module.network.bastion_sg_id
   name              = "${var.environment}-bastion"
   key_name          = aws_key_pair.access_key.key_name
+  bastion_eni_id    = module.network.bastion_eni_id
 }
 
 # Importing rds module to create RDS PostgreSQL database
@@ -75,15 +76,6 @@ module "rds" {
   account_id                 = data.aws_caller_identity.current.account_id
 }
 
-# Creating the API gateway
-module "api_gateway" {
-  source               = "../../../modules/api_gateway"
-  api_name             = "${var.environment}-api"
-  integration_target   = "lambda"
-  lambda_invoke_arn    = module.lambda.lambda_invoke_arn
-  ecs_service_url      = null
-}
-
 # Creating the Lambda to run the API
 module "lambda" {
   source                    = "../../../modules/lambda"
@@ -99,4 +91,30 @@ module "lambda" {
   db_port                   = var.db_port
   db_host                   = module.rds.db_host
   api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+}
+
+# Creates the ECS instance running API container if integration target is "ecs"
+module "ecs" {
+  source              = "../../../modules/ecs"
+  ecs_service_name    = "${var.environment}-ecs"
+  count               = (var.integration_target == "ecs" ? 1 : 0)
+  vpc_id              = module.network.vpc_id
+  image_name          = var.image_name
+  image_tag           = var.image_tag
+  public_subnet_id    = module.network.public_subnet_id
+  security_group_id   = module.network.instance_sg_id
+  db_user_secret_name = var.db_user_secret_name
+  db_name             = var.db_name
+  db_username         = var.db_username
+  db_port             = var.db_port
+  db_host             = module.rds.db_host
+}
+
+# Creating the API gateway
+module "api_gateway" {
+  source               = "../../../modules/api_gateway"
+  api_name             = "${var.environment}-api"
+  integration_target   = var.integration_target
+  lambda_invoke_arn    = (var.integration_target == "lambda" ? module.lambda.lambda_invoke_arn : null)
+  ecs_service_url      = (var.integration_target == "ecs" ? module.ecs.ecs_service_url : null)
 }

@@ -1,17 +1,20 @@
 # Define Cloud Map service to allow the API gateway to find the ECS service
-resource "aws_service_discovery_namespace" "public_namespace" {
-  name = "${var.ecs_service_name}-public-api-namespace"
-  type = "DNS_PUBLIC"
+resource "aws_service_discovery_private_dns_namespace" "private_namespace" {
+  name = "${var.ecs_service_name}-private"
+  vpc  = var.vpc_id
 }
 
 resource "aws_service_discovery_service" "cloud_map_service" {
   name = "${var.ecs_service_name}-cloud-map-service"
-  namespace_id = aws_service_discovery_namespace.public_namespace.id
   dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.private_namespace.id
     dns_records {
       type = "A"
       ttl  = 60
     }
+  }
+  health_check_custom_config {
+    failure_threshold = 1
   }
 }
 
@@ -37,6 +40,32 @@ resource "aws_ecs_task_definition" "ecs_task" {
       hostPort      = 80
       protocol      = "tcp"
     }]
+    environment = [
+      {
+        name  = "FLASK_ENV"
+        value = "production"
+      },
+      {
+        name  = "DB_USER"
+        value = var.db_username
+      },
+      {
+        name  = "DB_HOST"
+        value = var.db_host
+      },
+      {
+        name  = "DB_PORT"
+        value = var.db_port
+      },
+      {
+        name  = "DB_NAME"
+        value = var.db_name
+      },
+      {
+        name  = "DB_USER_SECRET"
+        value = var.db_user_secret_name
+      }
+    ]
   }])
 }
 
@@ -63,6 +92,6 @@ resource "aws_ecs_service" "ecs_service" {
 # Create a VPC Link for API Gateway
 resource "aws_api_gateway_vpc_link" "vpc_link" {
   name         = "${var.ecs_service_name}-vpc-link"
-  target_arns  = [aws_ecs_service.ecs_service.arn]
+  target_arns  = [aws_service_discovery_service.cloud_map_service.arn]
   description  = "VPC Link to ECS service"
 }

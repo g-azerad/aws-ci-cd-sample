@@ -136,6 +136,19 @@ resource "aws_security_group" "bastion_sg" {
   }
 }
 
+# Create a network interface to detach security group
+# configuration changes from the bastion VM itself
+resource "aws_network_interface" "bastion_eni" {
+  subnet_id       = aws_subnet.public_subnet.id
+  security_groups = [aws_security_group.bastion_sg.id]
+}
+
+# Create an elastic IP to associate to the bastion
+resource "aws_eip" "bastion_eip" {
+  network_interface = aws_network_interface.bastion_eni.id
+  depends_on        = [aws_network_interface.bastion_eni]
+}
+
 # Endpoint VPC pour accès à Secrets Manager
 resource "aws_vpc_endpoint" "secretsmanager_endpoint" {
   vpc_id              = aws_vpc.main_vpc.id

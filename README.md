@@ -65,11 +65,7 @@ Here is the structure of the `terraform/` folder from the project :
 terraform
 ├── live
 │   └── prod
-│       ├── fallback
-│       │   ├── main.tf
-│       │   ├── prod.tfvars
-│       │   └── variables.tf
-│       ├── primary
+│       ├── infrastructure
 │       │   ├── main.tf
 │       │   ├── prod.tfvars
 │       │   └── variables.tf
@@ -113,22 +109,69 @@ terraform
 We can see **modules** that defines the configuration of each main element from the infrastructure.
 
 Then, the Terraform infrastructure is applied from `terraform/live/prod` folders :
-- `secrets` manages the secrets (required by the database) and must be applied **first**.
-- `primary` handles the primary infrastructure relying on a Lambda to execute the application.
-- `fallback` only manage the transfer of the application rutime to a container executed by **ECS** service from AWS.
+- `secrets` manages the secrets (required by the database) and must be applied **first** and **once**.
+- `infrastructure` handles the infrastructure relying on a Lambda to execute the application (default case) or an ECS instance (fallback)
 
 For each case, all variables are defined into `variables.tf` (that might provide default values too) and `prod.tfvars` which gives values to the variables used by the Terraform plan.
 
-Then, in each Terraform environment, we need to execute the following command to create/update the infrastructure :
+As mentionned, `secrets` configuration needs to be applied **first** and has **already been done**. Two secrets are managed :
+- `db_master_user_secret` : the database master user password (`postgres` user)
+- `db_user_secret` : the common database user used by the counter API application (`db_user` user)
+
+Then, Terraform `infrastructure` configuration rely on a [Gitlab backend](https://docs.gitlab.com/ee/user/infrastructure/iac/terraform_state.html#migrate-to-a-gitlab-managed-opentofu-state) to manage the initialization state.
+
+In `infrastructure` Terraform environment, we need to execute the following command to create/update the infrastructure :
 
 ```
-terraform init
+# We assume we are into terraform/live/prod/infrastructure folder
+# Init Terraform with Gitlab backend
+PROJECT_ID="<gitlab-project-id>"
+TF_USERNAME="<gitlab-username>"
+TF_ADDRESS="https://gitlab.com/api/v4/projects/${PROJECT_ID}/terraform/state/old-state-name"
+terraform init \
+  -backend-config=address=${TF_ADDRESS} \
+  -backend-config=lock_address=${TF_ADDRESS}/lock \
+  -backend-config=unlock_address=${TF_ADDRESS}/lock \
+  -backend-config=username=${TF_USERNAME} \
+  -backend-config=password=${GITLAB_ACCESS_TOKEN} \
+  -backend-config=lock_method=POST \
+  -backend-config=unlock_method=DELETE \
+  -backend-config=retry_wait_min=5
 
+# Define Terraform plan with variables
 terraform plan -var-file="prod.tfvars"
 
+# Apply Terraform plan with variables
 terraform apply -var-file="prod.tfvars"
 ```
 
-> AWS needs the following environment variables to be defined: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, linked to an account that has enough rights to perform the deployment tasks.
+> AWS needs the following environment variables to be defined: **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY**, linked to an account that has enough rights to perform the deployment tasks.
 
-`scripts/` folder at the root of the Terraform configuration only contains that can be called during Terraform plan execution.
+`scripts/` folder at the root of the Terraform configuration only contains bash scripts that can be called during Terraform plan execution.
+
+Below are the environment variables required to run the Terraform plans :
+- `AWS_ACCESS_KEY_ID`: AWS account key identifier
+- `AWS_SECRET_ACCESS_KEY`: AWS account key password
+- `GITLAB_ACCESS_TOKEN`: a Gitlab access token to the project that contains the Terraform backend
+
+## Fallback strategy
+
+The Terraform infrastructure plan that can be modified to set the **API gateway integration** to a container running with **ECS**.
+
+To do so, you have to set `integration_target` Terraform variable value to `ecs`. Thus, an ECS instance will be created and will
+run the API counter application; the API gateway integration will be set to the ECS instance endpoint to provide the API.
+
+The easiest way, in order not to modify the configuration file, is to set the variable value in the **command line**.
+
+```
+# We assume we are into terraform/live/prod/infrastructure folder
+terraform plan -var-file="prod.tfvars" -var "integration_target=ecs"
+```
+
+Then, to come back to the **primary** setup, you just let `integration_target` variable be set by default configuration.
+
+```
+terraform plan -var-file="prod.tfvars"
+```
+
+This way, the API integration will be set back to the **Lambda** running the application, and the ECS instance is destroyed.

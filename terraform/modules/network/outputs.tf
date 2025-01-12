@@ -29,3 +29,15 @@ output "database_sg_id" {
 output "bastion_sg_id" {
   value = aws_security_group.bastion_sg.id
 }
+
+output "bastion_eni_id" {
+  value = aws_network_interface.bastion_eni.id
+}
+
+output "bastion_eip_id" {
+  value = aws_eip.bastion_eip.id
+}
+
+output "bastion_public_ip" {
+  value = aws_eip.bastion_eip.public_ip
+}

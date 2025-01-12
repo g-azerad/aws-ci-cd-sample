@@ -64,14 +64,18 @@ resource "aws_lambda_function" "lambda" {
     security_group_ids = [var.security_group_id]
   }
   layers        = [aws_lambda_layer_version.dependencies_layer.arn]
+  lifecycle {
+    ignore_changes = [layers, filename]
+  }
   environment {
     variables = {
-      FLASK_ENV    = "production"
-      DB_USER      = var.db_username
+      FLASK_ENV      = "production"
+      DB_USER        = var.db_username
       # DB_PASSWORD  = data.aws_secretsmanager_secret_version.db_user_secret_version.secret_string
-      DB_HOST      = var.db_host
-      DB_PORT      = var.db_port
-      DB_NAME      = var.db_name
+      DB_USER_SECRET = var.db_user_secret_name
+      DB_HOST        = var.db_host
+      DB_PORT        = var.db_port
+      DB_NAME        = var.db_name
     }
   }
   tags = {

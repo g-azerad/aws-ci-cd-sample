@@ -1,7 +1,12 @@
 variable "ecs_service_name" {
   description = "ECS service name"
   type        = string
-  default     = "ecs-prod"
+  default     = "prod-ecs"
+}
+
+variable "vpc_id" {
+  description = "VPC id"
+  type        = string
 }
 
 variable "image_name" {
@@ -26,12 +31,30 @@ variable "security_group_id" {
   type        = string
 }
 
-variable "api_gateway_id" {
-  description = "API gateway id for the Lambda integration"
+variable "db_user_secret_name" {
+  description = "Name of the database secret in AWS Secrets Manager"
   type        = string
 }
 
-variable "api_gateway_resource_id" {
-  description = "API gateway resource id for the Lambda integration"
+variable "db_name" {
+  description = "PostgreSQL database name"
+  type        = string
+  default     = "counter_db"
+}
+
+variable "db_username" {
+  description = "Main username for the database"
+  type        = string
+  default     = "userdb"
+}
+
+variable "db_port" {
+  description = "Port to access the database"
+  type        = number
+  default     = 5432
+}
+
+variable "db_host" {
+  description = "Host address where the database is running"
   type        = string
 }

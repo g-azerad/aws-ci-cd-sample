@@ -8,6 +8,11 @@ variable "bastion_sg_id" {
   type        = string
 }
 
+variable "bastion_eni_id" {
+  description = "The ID of the network interface associated with the Bastion."
+  type        = string
+}
+
 variable "ami" {
   description = "AMI ID for the instance"
   type        = string

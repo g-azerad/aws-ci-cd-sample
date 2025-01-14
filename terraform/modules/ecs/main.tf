@@ -1,20 +1,109 @@
-# Define Cloud Map service to allow the API gateway to find the ECS service
-resource "aws_service_discovery_private_dns_namespace" "private_namespace" {
-  name = "${var.ecs_service_name}-private"
-  vpc  = var.vpc_id
+# Load Balancer (NLB recommended for VPC Links with REST API Gateway)
+resource "aws_lb" "ecs_nlb" {
+  name               = "${var.ecs_service_name}-nlb"
+  internal           = false
+  load_balancer_type = "network"
+  subnets            = [var.public_subnet_id]
+
+  tags = {
+    Name = "${var.ecs_service_name}-nlb"
+  }
 }
 
-resource "aws_service_discovery_service" "cloud_map_service" {
-  name = "${var.ecs_service_name}-cloud-map-service"
-  dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.private_namespace.id
-    dns_records {
-      type = "A"
-      ttl  = 60
-    }
+# Target group for ECS
+resource "aws_lb_target_group" "ecs_target_group" {
+  name        = "${var.ecs_service_name}-tg"
+  port        = 80
+  protocol    = "TCP"
+  vpc_id      = var.vpc_id
+  target_type = "ip" # required for Fargate
+
+  health_check {
+    protocol            = "HTTP"
+    path                = "/counter"
+    matcher             = "200-399"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 3
+    unhealthy_threshold = 2
   }
-  health_check_custom_config {
-    failure_threshold = 1
+
+  tags = {
+    Name = "${var.ecs_service_name}-tg"
+  }
+}
+
+# Listener to direct the trafic to the target group
+resource "aws_lb_listener" "ecs_listener" {
+  load_balancer_arn = aws_lb.ecs_nlb.arn
+  port              = 80
+  protocol          = "TCP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ecs_target_group.arn
+  }
+}
+
+# IAM role for ECS task
+resource "aws_iam_role" "ecs_task_role" {
+  name = "${var.ecs_service_name}-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_role_policy" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"  # Exemple, à ajuster selon vos besoins
+}
+
+# Define IAM role policy for ECS tasks
+resource "aws_iam_role" "ecs_task_execution_role" {
+  name = "${var.ecs_service_name}-ecs-execution-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# Add an IAM policy to access CloudWatch logs
+resource "aws_iam_role_policy_attachment" "ecs_cloudwatch_logs_policy" {
+  role       = aws_iam_role.ecs_task_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
+# Create a CloudWatch log group
+resource "aws_cloudwatch_log_group" "ecs_log_group" {
+  name              = "/ecs/${var.ecs_service_name}"
+  retention_in_days = 7
+
+  tags = {
+    Name = "${var.ecs_service_name}-log-group"
   }
 }
 
@@ -28,6 +117,10 @@ resource "aws_ecs_task_definition" "ecs_task" {
   family                = "${var.ecs_service_name}-task"
   network_mode          = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+  cpu       = 256
+  memory    = 512
+  execution_role_arn    = aws_iam_role.ecs_task_execution_role.arn
+  task_role_arn         = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
     name      = "counter-api-container"
@@ -40,10 +133,22 @@ resource "aws_ecs_task_definition" "ecs_task" {
       hostPort      = 80
       protocol      = "tcp"
     }]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        awslogs-group         = "/ecs/${var.ecs_service_name}"
+        awslogs-region        = var.region
+        awslogs-stream-prefix = "ecs"
+      }
+    }
     environment = [
       {
         name  = "FLASK_ENV"
         value = "production"
+      },
+      {
+        name  = "FLASK_PORT"
+        value = "80"
       },
       {
         name  = "DB_USER"
@@ -55,7 +160,7 @@ resource "aws_ecs_task_definition" "ecs_task" {
       },
       {
         name  = "DB_PORT"
-        value = var.db_port
+        value = tostring(var.db_port)
       },
       {
         name  = "DB_NAME"
@@ -74,24 +179,26 @@ resource "aws_ecs_service" "ecs_service" {
   name            = var.ecs_service_name
   cluster         = aws_ecs_cluster.ecs_cluster.id
   task_definition = aws_ecs_task_definition.ecs_task.arn
-  desired_count   = 2
+  desired_count   = 1
   launch_type     = "FARGATE"
+  enable_execute_command = true
 
   network_configuration {
     subnets          = [var.public_subnet_id]
     security_groups = [var.security_group_id]
-    assign_public_ip = true
+    assign_public_ip = true # Required to download images from Docker Hub
   }
 
-  service_registries {
-    registry_arn = aws_service_discovery_service.cloud_map_service.arn
-    port         = 80
+  load_balancer {
+    target_group_arn = aws_lb_target_group.ecs_target_group.arn
+    container_name   = "counter-api-container"
+    container_port   = 80
   }
 }
 
 # Create a VPC Link for API Gateway
 resource "aws_api_gateway_vpc_link" "vpc_link" {
   name         = "${var.ecs_service_name}-vpc-link"
-  target_arns  = [aws_service_discovery_service.cloud_map_service.arn]
+  target_arns  = [aws_lb.ecs_nlb.arn]
   description  = "VPC Link to ECS service"
 }

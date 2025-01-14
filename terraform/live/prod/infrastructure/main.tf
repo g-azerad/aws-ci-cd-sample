@@ -96,6 +96,7 @@ module "lambda" {
 # Creates the ECS instance running API container if integration target is "ecs"
 module "ecs" {
   source              = "../../../modules/ecs"
+  region              = var.region
   ecs_service_name    = "${var.environment}-ecs"
   count               = (var.integration_target == "ecs" ? 1 : 0)
   vpc_id              = module.network.vpc_id
@@ -116,5 +117,6 @@ module "api_gateway" {
   api_name             = "${var.environment}-api"
   integration_target   = var.integration_target
   lambda_invoke_arn    = (var.integration_target == "lambda" ? module.lambda.lambda_invoke_arn : null)
-  ecs_service_url      = (var.integration_target == "ecs" ? module.ecs.ecs_service_url : null)
+  ecs_vpc_link_id      = (var.integration_target == "ecs" ? module.ecs[0].ecs_vpc_link_id : null)
+  ecs_lb_uri           = (var.integration_target == "ecs" ? module.ecs[0].ecs_lb_uri : null)
 }

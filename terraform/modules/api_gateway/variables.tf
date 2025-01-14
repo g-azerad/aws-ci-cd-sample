@@ -13,7 +13,12 @@ variable "lambda_invoke_arn" {
   type        = string
 }
 
-variable "ecs_service_url" {
-  description = "URL from the ECS service that runs the API"
+variable "ecs_vpc_link_id" {
+  description = "ARN from the VPC link targetting the load balancer handling the ECS that runs the API"
+  type        = string
+}
+
+variable "ecs_lb_uri" {
+  description = "URL of the load balancer in front of the ECS running the API"
   type        = string
 }

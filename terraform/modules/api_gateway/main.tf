@@ -24,7 +24,9 @@ resource "aws_api_gateway_integration" "api_integration" {
   http_method             = aws_api_gateway_method.proxy_any.http_method
   type                    = var.integration_target == "lambda" ? "AWS_PROXY" : "HTTP_PROXY"
   integration_http_method = var.integration_target == "lambda" ? "POST" : "ANY"
-  uri                     = var.integration_target == "lambda" ? var.lambda_invoke_arn : var.ecs_service_url
+  uri                     = var.integration_target == "lambda" ? var.lambda_invoke_arn : var.ecs_lb_uri
+  connection_type         = var.integration_target == "ecs" ? "VPC_LINK" : null
+  connection_id           = var.integration_target == "ecs" ? var.ecs_vpc_link_id : null
   passthrough_behavior    = "WHEN_NO_MATCH"
 }
 

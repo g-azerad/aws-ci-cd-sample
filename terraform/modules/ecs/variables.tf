@@ -1,3 +1,9 @@
+variable "region" {
+  description = "Infrastructure region"
+  type        = string
+  default     = "eu-west-3"
+}
+
 variable "ecs_service_name" {
   description = "ECS service name"
   type        = string

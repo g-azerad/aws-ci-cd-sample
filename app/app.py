@@ -154,4 +154,6 @@ if __name__ == '__main__':
     # Local executor
     # Setting Flask debug mode from environment variable
     debug_mode = bool(os.getenv('DEBUG_MODE') == "true")
-    app.run(host="0.0.0.0", debug=debug_mode)
+    # Setting Flask port from environment variable
+    flask_port = os.getenv('FLASK_PORT', '5000')
+    app.run(host="0.0.0.0", port=flask_port, debug=debug_mode)

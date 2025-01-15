@@ -11,7 +11,8 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 ENV DB_USER="user" \
     DB_PASSWORD="password" \
     DB_HOST="localhost" \
-    DB_NAME="counter_db"
+    DB_NAME="counter_db" \
+    FLASK_PORT="80"
 
 EXPOSE 80
 

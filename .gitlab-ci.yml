@@ -36,6 +36,7 @@ workflow:
     - Dockerfile
   package:
     - Dockerfile
+    - Dockerfile-root
     - app/*.py
     - app/requirements.txt
   deploy_lambda:

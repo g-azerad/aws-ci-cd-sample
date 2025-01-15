@@ -15,6 +15,11 @@ resource "aws_api_gateway_method" "proxy_any" {
   resource_id   = aws_api_gateway_resource.counter_proxy.id
   http_method   = "ANY"
   authorization = "NONE"
+
+  # To transmit the path to the integration for ECS
+  request_parameters = var.integration_target == "ecs" ? {
+    "method.request.path.proxy" = true
+  } : null
 }
 
 # The API integration depends from the target (lambda or ECS)
@@ -22,12 +27,17 @@ resource "aws_api_gateway_integration" "api_integration" {
   rest_api_id             = aws_api_gateway_rest_api.api_gateway.id
   resource_id             = aws_api_gateway_resource.counter_proxy.id
   http_method             = aws_api_gateway_method.proxy_any.http_method
+  passthrough_behavior    = "WHEN_NO_MATCH"
   type                    = var.integration_target == "lambda" ? "AWS_PROXY" : "HTTP_PROXY"
   integration_http_method = var.integration_target == "lambda" ? "POST" : "ANY"
-  uri                     = var.integration_target == "lambda" ? var.lambda_invoke_arn : var.ecs_lb_uri
+  uri                     = var.integration_target == "lambda" ? var.lambda_invoke_arn : "${var.ecs_lb_uri}/{proxy}"
   connection_type         = var.integration_target == "ecs" ? "VPC_LINK" : null
   connection_id           = var.integration_target == "ecs" ? var.ecs_vpc_link_id : null
-  passthrough_behavior    = "WHEN_NO_MATCH"
+  # Transmit the path and the method to the integration for ECS
+  request_parameters = var.integration_target == "ecs" ? {
+    "integration.request.header.X-HTTP-Method" = "context.httpMethod"
+    "integration.request.path.proxy" = "method.request.path.proxy"
+  } : null
 }
 
 # Defining deployment

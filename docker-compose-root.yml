@@ -1,9 +1,9 @@
 services:
   api:
-    image: counter-api:latest
+    image: counter-api-root:latest
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-root
     container_name: api
     stop_signal: SIGINT
     ports:

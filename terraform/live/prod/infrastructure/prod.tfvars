@@ -13,5 +13,5 @@ db_username                = "user_db"
 db_port                    = 5432
 lambda_zip_file            = "../../../../app/app_package.zip"
 dependencies_package       = "../../../../app/dependencies_layer.zip"
-image_name                 = "gazerad/counter-api"
+image_name                 = "gazerad/counter-api-root"
 image_tag                  = "latest"

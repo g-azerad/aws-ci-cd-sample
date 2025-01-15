@@ -190,6 +190,36 @@ package-docker:
       --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
       --destination "${DOCKERHUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
 
+package-docker-root:
+  stage: package
+  image:
+    name: gcr.io/kaniko-project/executor:$KANIKO_VERSION
+    entrypoint: [""]
+  rules:
+    - if: $DEPLOY_MODE == "Y"
+      when: never
+    - if: !reference [.rules, tag_release]
+      changes: !reference [.changes, package]
+    - if: !reference [.rules, latest]
+      changes: !reference [.changes, package]
+  script:
+    - if [ X"$CI_COMMIT_TAG" == "X" ]; then IMAGE_TAG="latest"; else IMAGE_TAG=$CI_COMMIT_TAG; fi
+    - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
+    - |-
+      echo "
+      {
+        \"auths\":{
+          \"${DOCKERHUB_REGISTRY}\":{
+            \"auth\":\"$(printf "%s:%s" "${DOCKERHUB_USER}" "${DOCKERHUB_PASSWORD}" | base64 | tr -d '\n')\"
+          }
+        }
+      }" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --context "$CI_PROJECT_DIR"
+      --build-arg PYTHON_VERSION=$PYTHON_VERSION
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile-root"
+      --destination "${DOCKERHUB_USER}/${IMAGE_NAME}-root:${IMAGE_TAG}"
+
 # Create zip packages to be exported to AWS Lambda
 package-lambda:
   stage: package

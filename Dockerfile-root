@@ -1,0 +1,20 @@
+ARG PYTHON_VERSION=3.12
+FROM python:${PYTHON_VERSION}-slim
+
+COPY app/requirements.txt /tmp/requirements.txt
+
+COPY app/app.py /root/app.py
+
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# These values will be overidden by CI/CD process
+ENV DB_USER="user" \
+    DB_PASSWORD="password" \
+    DB_HOST="localhost" \
+    DB_NAME="counter_db"
+
+EXPOSE 80
+
+WORKDIR /root
+
+CMD ["python", "app.py"]

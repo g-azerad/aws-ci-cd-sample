@@ -146,6 +146,11 @@ def reset_counter():
         conn.close()
     return jsonify({"value": updated_value}), 200
 
+@app.route('/healthcheck', methods=['GET'])
+def set_healthcheck():
+    """Provide an answer to healthcheck requests"""
+    return jsonify({"result": "OK"}), 200
+
 def handler(event, context):
     """Lambda handler when executed in an AWS Lambda function"""
     return awsgi2.response(app, event, context)

@@ -3,9 +3,9 @@ FROM python:${PYTHON_VERSION}-slim
 
 COPY app/requirements.txt /tmp/requirements.txt
 
-COPY app/app.py /root/app.py
-
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY app/app.py /root/app.py
 
 # These values will be overidden by CI/CD process
 ENV DB_USER="user" \

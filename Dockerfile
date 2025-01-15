@@ -5,13 +5,13 @@ RUN groupadd -r web && useradd -m -r -g web web
 
 COPY --chown=web:web app/requirements.txt /tmp/requirements.txt
 
-COPY --chown=web:web app/app.py /home/web/app.py
-
 USER web
 
 WORKDIR /home/web
 
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY --chown=web:web app/app.py /home/web/app.py
 
 # These values will be overidden by CI/CD process
 ENV DB_USER="user" \

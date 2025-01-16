@@ -5,6 +5,11 @@ COPY app/requirements.txt /tmp/requirements.txt
 
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
+# Also copying Amazon RDS cert bundle for eu-west-3 region
+# Only used by ECS (so root docker image)
+COPY db/rds/eu-west-3-bundle.pem /etc/ssl/certs
+RUN update-ca-certificates
+
 COPY app/app.py /root/app.py
 
 # These values will be overidden by CI/CD process

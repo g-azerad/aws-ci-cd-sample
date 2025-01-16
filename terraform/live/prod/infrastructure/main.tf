@@ -91,24 +91,27 @@ module "lambda" {
   db_port                   = var.db_port
   db_host                   = module.rds.db_host
   api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+  db_connect_iam_policy_arn = module.rds.db_connect_iam_policy_arn
 }
 
 # Creates the ECS instance running API container if integration target is "ecs"
 module "ecs" {
-  source              = "../../../modules/ecs"
-  region              = var.region
-  ecs_service_name    = "${var.environment}-ecs"
-  count               = (var.integration_target == "ecs" ? 1 : 0)
-  vpc_id              = module.network.vpc_id
-  image_name          = var.image_name
-  image_tag           = var.image_tag
-  public_subnet_id    = module.network.public_subnet_id
-  security_group_id   = module.network.instance_sg_id
-  db_user_secret_name = var.db_user_secret_name
-  db_name             = var.db_name
-  db_username         = var.db_username
-  db_port             = var.db_port
-  db_host             = module.rds.db_host
+  source                    = "../../../modules/ecs"
+  region                    = var.region
+  secrets_iam_policy_arn    = module.lambda.secrets_iam_policy_arn
+  db_connect_iam_policy_arn = module.rds.db_connect_iam_policy_arn
+  ecs_service_name          = "${var.environment}-ecs"
+  count                     = (var.integration_target == "ecs" ? 1 : 0)
+  vpc_id                    = module.network.vpc_id
+  image_name                = var.image_name
+  image_tag                 = var.image_tag
+  public_subnet_id          = module.network.public_subnet_id
+  security_group_id         = module.network.instance_sg_id
+  db_user_secret_name       = var.db_user_secret_name
+  db_name                   = var.db_name
+  db_username               = var.db_username
+  db_port                   = var.db_port
+  db_host                   = module.rds.db_host
 }
 
 # Creating the API gateway

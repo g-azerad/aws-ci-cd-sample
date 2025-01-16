@@ -13,12 +13,14 @@ app = Flask(__name__)
 
 def get_secret():
     """Retrieves the password from AWS Secrets manager or get IAM token if not provided."""
+    # First test if a password is directly provided
     if os.getenv('DB_PASSWORD'):
         return os.getenv('DB_PASSWORD')
     # Get IAM token if IAM_AUTH environment variable is set
     region_name = os.getenv('AWS_REGION', 'eu-west-3')
     session = boto3.session.Session()
-    if os.getenv('IAM_AUTH'):
+    iam_auth = os.getenv('IAM_AUTH', 'disable')
+    if iam_auth != 'disable':
         token = session.client('rds').generate_db_auth_token(
             DBHostname=db_config['host'],
             Port=db_config['port'],
@@ -49,6 +51,12 @@ password = get_secret()
 if not password:
     raise RuntimeError("Password retrieval failure: Unable to start the application.")
 db_config['password'] = password
+
+# Add SSL configuration if SSL_MODE is defined
+ssl_mode = os.getenv('SSL_MODE', 'disable')
+if ssl_mode != 'disable':
+    db_config['sslmode'] = ssl_mode
+    db_config['sslrootcert'] = os.getenv('SSL_ROOT_CERT', '/etc/ssl/certs/eu-west-3-bundle.pem')
 
 def get_db_connection():
     """Gets the connection to the PostgreSQL database defined by db_config variable."""

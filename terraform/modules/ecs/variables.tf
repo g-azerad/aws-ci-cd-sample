@@ -10,6 +10,16 @@ variable "ecs_service_name" {
   default     = "prod-ecs"
 }
 
+variable "secrets_iam_policy_arn" {
+  description = "ARN of the IAM policy to get the secrets"
+  type        = string
+}
+
+variable "db_connect_iam_policy_arn" {
+  description = "ARN of the IAM policy to connect to the RDS database"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "VPC id"
   type        = string

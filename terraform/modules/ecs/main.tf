@@ -20,8 +20,8 @@ resource "aws_lb_target_group" "ecs_target_group" {
 
   health_check {
     protocol            = "HTTP"
-    path                = "/counter"
-    matcher             = "200-399"
+    path                = "/healthcheck"
+    matcher             = "200"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 3
@@ -63,14 +63,21 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "ecs_task_role_policy" {
+# Attach existing IAM policy to access secrets manager
+resource "aws_iam_role_policy_attachment" "task_role_secrets_manager_access" {
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"  # Exemple, à ajuster selon vos besoins
+  policy_arn = var.secrets_iam_policy_arn
+}
+
+# Attach RDS db connection policy to the task role
+resource "aws_iam_role_policy_attachment" "task_role_db_access" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = var.db_connect_iam_policy_arn
 }
 
 # Define IAM role policy for ECS tasks
 resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "${var.ecs_service_name}-ecs-execution-role"
+  name = "${var.ecs_service_name}-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -152,7 +159,8 @@ resource "aws_ecs_task_definition" "ecs_task" {
       },
       {
         name  = "DB_USER"
-        value = var.db_username
+        # value = var.db_username
+        value = "iam_user"
       },
       {
         name  = "DB_HOST"
@@ -167,9 +175,21 @@ resource "aws_ecs_task_definition" "ecs_task" {
         value = var.db_name
       },
       {
+        name  = "IAM_AUTH"
+        value = "OK"
+      },
+      {
+        name  = "SSL_MODE"
+        value = "require"
+      },
+      {
+        name  = "SSL_ROOT_CERT"
+        value = "/etc/ssl/certs/${var.region}-bundle.pem"
+      }/*,
+      {
         name  = "DB_USER_SECRET"
         value = var.db_user_secret_name
-      }
+      }*/
     ]
   }])
 }

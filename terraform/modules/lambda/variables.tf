@@ -75,3 +75,8 @@ variable "api_gateway_execution_arn" {
   description = "API gateway execution ARN for the Lambda permission"
   type        = string
 }
+
+variable "db_connect_iam_policy_arn" {
+  description = "ARN of the IAM policy to connect to the RDS database"
+  type        = string
+}

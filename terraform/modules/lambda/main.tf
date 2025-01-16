@@ -1,3 +1,4 @@
+# Define IAM lambda role
 resource "aws_iam_role" "lambda_role" {
   name               = "${var.api_name}-lambda-role"
   assume_role_policy = jsonencode({
@@ -14,18 +15,20 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
+# Attach VPC access policy to the role
 resource "aws_iam_role_policy_attachment" "lambda_vpc_policy" {
   role        = aws_iam_role.lambda_role.name
   policy_arn  = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
+# Define policy to access secrets manager and attach it
 data "aws_secretsmanager_secret" "db_user_secret" {
   name = var.db_user_secret_name
 }
 
 resource "aws_iam_policy" "lambda_secrets_policy" {
   name        = "${var.api_name}-secrets-policy"
-  description = "Policy for Lambda to access Secrets Manager"
+  description = "Policy to access Secrets Manager"
   policy      = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -49,10 +52,6 @@ resource "aws_lambda_layer_version" "dependencies_layer" {
   filename            = var.dependencies_package
 }
 
-data "aws_secretsmanager_secret_version" "db_user_secret_version" {
-  secret_id = data.aws_secretsmanager_secret.db_user_secret.id
-}
-
 resource "aws_lambda_function" "lambda" {
   function_name = "${var.api_name}-lambda"
   role          = aws_iam_role.lambda_role.arn
@@ -71,7 +70,6 @@ resource "aws_lambda_function" "lambda" {
     variables = {
       FLASK_ENV      = "production"
       DB_USER        = var.db_username
-      # DB_PASSWORD  = data.aws_secretsmanager_secret_version.db_user_secret_version.secret_string
       DB_USER_SECRET = var.db_user_secret_name
       DB_HOST        = var.db_host
       DB_PORT        = var.db_port

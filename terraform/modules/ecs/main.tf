@@ -114,6 +114,17 @@ resource "aws_cloudwatch_log_group" "ecs_log_group" {
   }
 }
 
+/*
+# Retrieving database password
+data "aws_secretsmanager_secret" "db_user_secret" {
+  name = var.db_user_secret_name
+}
+
+data "aws_secretsmanager_secret_version" "db_user_secret_version" {
+  secret_id = data.aws_secretsmanager_secret.db_user_secret.id
+}
+*/
+
 # Create an ECS cluster
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "${var.ecs_service_name}-cluster"
@@ -193,7 +204,11 @@ resource "aws_ecs_task_definition" "ecs_task" {
       {
         name  = "IAM_AUTH"
         value = var.iam_auth
-      }
+      }/*,
+      {
+        name  = "DB_PASSWORD"
+        value = data.aws_secretsmanager_secret_version.db_user_secret_version.secret_string
+      }*/
     ]
   }])
 }

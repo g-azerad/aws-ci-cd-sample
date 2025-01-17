@@ -83,6 +83,7 @@ variable "ssl_mode" {
 variable "ssl_root_cert" {
   description = "RDS ssl root path for database connection"
   type        = string
+  default     = null
 }
 
 locals {

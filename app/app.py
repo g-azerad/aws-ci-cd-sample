@@ -13,15 +13,12 @@ app = Flask(__name__)
 
 def get_secret(debug_mode):
     """Retrieves the password from AWS Secrets manager or get IAM token if not provided."""
-    # First test if a password is directly provided
-    if os.getenv('DB_PASSWORD'):
-        if debug_mode:
-            print("DEBUG - Password retrieved from DB_PASSWORD environment variable")
-        return os.getenv('DB_PASSWORD')
     # Get IAM token if IAM_AUTH environment variable is set
     region_name = os.getenv('AWS_REGION', 'eu-west-3')
     session = boto3.session.Session()
     iam_auth = os.getenv('IAM_AUTH', 'disable')
+    if debug_mode:
+        print("DEBUG - IAM authentication state : "+ iam_auth)
     if iam_auth != 'disable':
         token = session.client('rds').generate_db_auth_token(
             DBHostname=db_config['host'],
@@ -31,18 +28,29 @@ def get_secret(debug_mode):
         if debug_mode:
             print("DEBUG - Password retrieved as IAM token : " + token)
         return token
-    # Else, get password from AWS Secrets manager
+    
+    # Then get password from AWS Secrets manager
     secrets_client = session.client(service_name="secretsmanager", region_name=region_name)
-    secret_name = os.getenv('DB_USER_SECRET', 'db_user_secret')
-    if debug_mode:
-        print("DEBUG - Getting secret "+ secret_name + ", region "+ region_name)
-    try:
-        secret_value_response = secrets_client.get_secret_value(SecretId=secret_name)
-        print("DEBUG - secret is : "+ secret_value_response)
-    except Exception as e:
-        print(e, file=sys.stderr)
-        return False
-    return secret_value_response['SecretString']
+    secret_name = os.getenv('DB_USER_SECRET')
+    if secret_name:
+        if debug_mode:
+            print("DEBUG - Getting secret "+ secret_name + ", region "+ region_name)
+        try:
+            secret_value_response = secrets_client.get_secret_value(SecretId=secret_name)
+            print("DEBUG - secret is : "+ secret_value_response)
+        except Exception as e:
+            print(e, file=sys.stderr)
+            return False
+        if secret_value_response['SecretString']:
+            return secret_value_response['SecretString']
+    
+    # Else, test if a password is directly provided
+    if os.getenv('DB_PASSWORD'):
+        if debug_mode:
+            print("DEBUG - Password retrieved from DB_PASSWORD environment variable")
+        return os.getenv('DB_PASSWORD')
+    # If nothing is found, return False
+    return False
 
 # Database configuration dictionary required by psycopg2
 db_config = {

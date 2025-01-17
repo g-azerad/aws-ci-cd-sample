@@ -13,6 +13,10 @@ ssh -f aws-bastion -N
 
 PGPASSWORD=$RDS_MASTER_USER_PASSWORD psql -h localhost -p 5433 -U postgres -d counter_db
 
+PGPASSWORD=$RDS_DB_USER_PASSWORD psql -h localhost -p 5433 -U user_db -d counter_db
+
+PGPASSWORD=$(aws rds generate-db-auth-token --hostname terraform-20250107211929441900000006.c1iemigokd06.eu-west-3.rds.amazonaws.com --port 5432 --region eu-west-3 --username iam_user) \
+  psql -h localhost -p 5433 -U iam_user -d counter_db --set=sslmode=require
 ---------------------------------------------------------------
 
 Packaging

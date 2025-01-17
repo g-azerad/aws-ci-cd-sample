@@ -11,10 +11,12 @@ import awsgi2
 
 app = Flask(__name__)
 
-def get_secret():
+def get_secret(debug_mode):
     """Retrieves the password from AWS Secrets manager or get IAM token if not provided."""
     # First test if a password is directly provided
     if os.getenv('DB_PASSWORD'):
+        if debug_mode:
+            print("DEBUG - Password retrieved from DB_PASSWORD environment variable")
         return os.getenv('DB_PASSWORD')
     # Get IAM token if IAM_AUTH environment variable is set
     region_name = os.getenv('AWS_REGION', 'eu-west-3')
@@ -26,13 +28,17 @@ def get_secret():
             Port=db_config['port'],
             DBUsername=db_config['user'],
             Region=region_name)
+        if debug_mode:
+            print("DEBUG - Password retrieved as IAM token : " + token)
         return token
     # Else, get password from AWS Secrets manager
     secrets_client = session.client(service_name="secretsmanager", region_name=region_name)
     secret_name = os.getenv('DB_USER_SECRET', 'db_user_secret')
-    print("Getting secret "+ secret_name + ", region "+ region_name)
+    if debug_mode:
+        print("DEBUG - Getting secret "+ secret_name + ", region "+ region_name)
     try:
         secret_value_response = secrets_client.get_secret_value(SecretId=secret_name)
+        print("DEBUG - secret is : "+ secret_value_response)
     except Exception as e:
         print(e, file=sys.stderr)
         return False
@@ -47,7 +53,8 @@ db_config = {
     'password': ""
 }
 # Password parameter is set from get_secret function
-password = get_secret()
+debug_mode = bool(os.getenv('DEBUG_MODE') == "true")
+password = get_secret(debug_mode)
 if not password:
     raise RuntimeError("Password retrieval failure: Unable to start the application.")
 db_config['password'] = password

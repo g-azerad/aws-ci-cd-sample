@@ -112,6 +112,10 @@ module "ecs" {
   db_username               = var.db_username
   db_port                   = var.db_port
   db_host                   = module.rds.db_host
+  ssl_mode                  = var.ssl_mode
+  ssl_root_cert             = local.ssl_root_cert
+  iam_auth                  = var.iam_auth
+  debug_mode                = var.debug_mode
 }
 
 # Creating the API gateway

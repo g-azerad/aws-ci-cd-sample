@@ -74,6 +74,32 @@ variable "db_port" {
   default     = 5432
 }
 
+variable "ssl_mode" {
+  description = "SSL mode for database connection"
+  type        = string
+  default     = "require"
+}
+
+variable "ssl_root_cert" {
+  description = "RDS ssl root path for database connection"
+  type        = string
+}
+
+locals {
+    ssl_root_cert = var.ssl_root_cert == "" ? "/etc/ssl/certs/${var.region}-bundle.pem" : var.ssl_root_cert
+}
+
+variable "iam_auth" {
+  description = "Enable/disable IAM authentication to the database"
+  type        = string
+}
+
+variable "debug_mode" {
+  description = "Enable/disable debug mode for Flask application"
+  type        = string
+  default     = "false"
+} 
+
 variable "lambda_zip_file" {
   description = "Lambda application zip file location"
   type        = string

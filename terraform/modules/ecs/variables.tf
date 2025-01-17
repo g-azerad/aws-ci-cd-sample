@@ -74,3 +74,25 @@ variable "db_host" {
   description = "Host address where the database is running"
   type        = string
 }
+
+variable "ssl_mode" {
+  description = "SSL mode for database connection"
+  type        = string
+  default     = "require"
+}
+
+variable "ssl_root_cert" {
+  description = "RDS ssl root path for database connection"
+  type        = string
+}
+
+variable "iam_auth" {
+  description = "Enable/disable IAM authentication to the database"
+  type        = string
+}
+
+variable "debug_mode" {
+  description = "Enable/disable debug mode for Flask application"
+  type        = string
+  default     = "false"
+}

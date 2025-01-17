@@ -158,9 +158,13 @@ resource "aws_ecs_task_definition" "ecs_task" {
         value = "80"
       },
       {
+        name  = "DEBUG_MODE"
+        value = var.debug_mode
+      },
+      {
         name  = "DB_USER"
-        # value = var.db_username
-        value = "iam_user"
+        value = var.db_username
+        # value = "iam_user"
       },
       {
         name  = "DB_HOST"
@@ -175,21 +179,21 @@ resource "aws_ecs_task_definition" "ecs_task" {
         value = var.db_name
       },
       {
-        name  = "IAM_AUTH"
-        value = "OK"
-      },
-      {
         name  = "SSL_MODE"
-        value = "require"
+        value = var.ssl_mode
       },
       {
         name  = "SSL_ROOT_CERT"
-        value = "/etc/ssl/certs/${var.region}-bundle.pem"
-      }/*,
+        value = var.ssl_root_cert
+      },
       {
         name  = "DB_USER_SECRET"
         value = var.db_user_secret_name
-      }*/
+      },
+      {
+        name  = "IAM_AUTH"
+        value = var.iam_auth
+      }
     ]
   }])
 }

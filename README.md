@@ -120,7 +120,7 @@ As mentionned, `secrets` configuration needs to be applied **first** and has **a
 
 Then, Terraform `infrastructure` configuration rely on a [Gitlab backend](https://docs.gitlab.com/ee/user/infrastructure/iac/terraform_state.html#migrate-to-a-gitlab-managed-opentofu-state) to manage the initialization state.
 
-In `infrastructure` Terraform environment, we need to execute the following command to create/update the infrastructure :
+In `infrastructure` Terraform environment, we need to execute the following command to create/update/delete the infrastructure :
 
 ```
 # We assume we are into terraform/live/prod/infrastructure folder
@@ -143,9 +143,14 @@ terraform plan -var-file="prod.tfvars"
 
 # Apply Terraform plan with variables
 terraform apply -var-file="prod.tfvars"
+
+# Destroy the whole setup
+terraform destroy -var-file="prod.tfvars"
 ```
 
-> AWS needs the following environment variables to be defined: **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY**, linked to an account that has enough rights to perform the deployment tasks.
+> AWS needs the following environment variables to be defined: **AWS_ACCESS_KEY_ID**, **AWS_SECRET_ACCESS_KEY**, linked to an account that has enough rights to perform the deployment tasks.
+
+In order to handle parameters and variables used by Terraform, you can edit `terraform/live/prod/infrastructure/prod.tfvars` file.
 
 `scripts/` folder at the root of the Terraform configuration only contains bash scripts that can be called during Terraform plan execution.
 
@@ -166,12 +171,17 @@ The easiest way, in order not to modify the configuration file, is to set the va
 ```
 # We assume we are into terraform/live/prod/infrastructure folder
 terraform plan -var-file="prod.tfvars" -var "integration_target=ecs"
+
+terraform apply -var-file="prod.tfvars" -var "integration_target=ecs"
 ```
 
 Then, to come back to the **primary** setup, you just let `integration_target` variable be set by default configuration.
 
 ```
+# Still into terraform/live/prod/infrastructure folder
 terraform plan -var-file="prod.tfvars"
+
+terraform apply -var-file="prod.tfvars"
 ```
 
 This way, the API integration will be set back to the **Lambda** running the application, and the ECS instance is destroyed.

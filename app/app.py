@@ -20,14 +20,19 @@ def get_secret(debug_mode):
     if debug_mode:
         print("DEBUG - IAM authentication state : "+ iam_auth)
     if iam_auth != 'disable':
-        token = session.client('rds').generate_db_auth_token(
-            DBHostname=db_config['host'],
-            Port=db_config['port'],
-            DBUsername=db_config['user'],
-            Region=region_name)
-        if debug_mode:
-            print("DEBUG - Password retrieved as IAM token : " + token)
-        return token
+        try:
+            token = session.client('rds').generate_db_auth_token(
+                DBHostname=db_config['host'],
+                Port=db_config['port'],
+                DBUsername=db_config['user'],
+                Region=region_name)
+            if debug_mode:
+                print("DEBUG - Password retrieved as IAM token : " + token)
+            if token:
+                return token
+        except Exception as e:
+            print("An exception has been raised during IAM token retrieval : "+ e)
+            return False
     
     # Then get password from AWS Secrets manager
     secrets_client = session.client(service_name="secretsmanager", region_name=region_name)
@@ -37,12 +42,12 @@ def get_secret(debug_mode):
             print("DEBUG - Getting secret "+ secret_name + ", region "+ region_name)
         try:
             secret_value_response = secrets_client.get_secret_value(SecretId=secret_name)
-            print("DEBUG - secret is : "+ secret_value_response)
+            if secret_value_response:
+                if secret_value_response['SecretString']:
+                    return secret_value_response['SecretString']
         except Exception as e:
-            print(e, file=sys.stderr)
+            print("An exception has been raised during secret resolution : "+ e)
             return False
-        if secret_value_response['SecretString']:
-            return secret_value_response['SecretString']
     
     # Else, test if a password is directly provided
     if os.getenv('DB_PASSWORD'):

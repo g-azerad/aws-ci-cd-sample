@@ -1,18 +1,21 @@
 ARG PYTHON_VERSION=3.12
 FROM python:${PYTHON_VERSION}-slim
 
+# Copying Amazon RDS cert bundle for eu-west-3 region
+# Only used by ECS (so root docker image)
+# Installing curl for healthcheck too
+COPY db/rds/eu-west-3-bundle.pem /etc/ssl/certs
+RUN update-ca-certificates && \
+    apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Installing the application
 COPY app/requirements.txt /tmp/requirements.txt
 
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Also copying Amazon RDS cert bundle for eu-west-3 region
-# Only used by ECS (so root docker image)
-COPY db/rds/eu-west-3-bundle.pem /etc/ssl/certs
-RUN update-ca-certificates
-
 COPY app/app.py /root/app.py
 
-# These values will be overidden by CI/CD process
+# These values will be overidden
 ENV DB_USER="user" \
     DB_PASSWORD="password" \
     DB_HOST="localhost" \

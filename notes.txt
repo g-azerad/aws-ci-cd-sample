@@ -22,3 +22,8 @@ PGPASSWORD=$(aws rds generate-db-auth-token --hostname terraform-202501072119294
 Packaging
 
 pip install --platform manylinux2014_x86_64 --target . --python-version 3.12 --only-binary=:all: -r requirements.txt -t ./python/
+
+---------------------------------------------------------------
+
+ECR : get token password
+aws ecr get-login-password --region eu-west-3

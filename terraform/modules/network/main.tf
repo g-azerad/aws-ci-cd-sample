@@ -14,7 +14,7 @@ resource "aws_subnet" "public_subnet" {
   availability_zone       = var.availability_zone
 
   tags = {
-    Name = "${var.name}-public"
+    Name = "${var.name}-public-subnet"
   }
 }
 
@@ -25,7 +25,7 @@ resource "aws_subnet" "private_subnet" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "${var.name}-subnet"
+    Name = "${var.name}-private-subnet"
   }
 }
 
@@ -36,7 +36,7 @@ resource "aws_subnet" "private_subnet_bkp" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name = "${var.name}-subnet-bkp"
+    Name = "${var.name}-private-subnet-bkp"
   }
 }
 
@@ -108,32 +108,35 @@ resource "aws_security_group" "database_sg" {
   }
 
   tags = {
-    Name = "database-sg"
+    Name = "${var.name}-database-sg"
   }
 }
 
 resource "aws_security_group" "bastion_sg" {
   vpc_id = aws_vpc.main_vpc.id
 
-  ingress {
-    description = "Allow SSH access from your IP"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [] # To be set later
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = {
-    Name = "bastion-sg"
+    Name = "${var.name}-bastion-sg"
   }
+}
+
+# Here we define the ingress and egress rules apart
+resource "aws_vpc_security_group_ingress_rule" "bastion_sg_ingress" {
+  security_group_id = aws_security_group.bastion_sg.id
+
+  description = "Allow SSH access from your IP"
+  from_port   = 22
+  to_port     = 22
+  ip_protocol = "tcp"
+  cidr_ipv4   = var.bastion_cidr_ipv4
+}
+
+resource "aws_vpc_security_group_egress_rule" "bastion_sg_egress" {
+  security_group_id = aws_security_group.bastion_sg.id
+
+  description = "Allow all outbound traffic"
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
 }
 
 # Create a network interface to detach security group
@@ -157,4 +160,64 @@ resource "aws_vpc_endpoint" "secretsmanager_endpoint" {
   private_dns_enabled = true
   subnet_ids          = [aws_subnet.public_subnet.id]
   security_group_ids  = [aws_security_group.instance_sg.id]
+}
+
+# VPC endpoints required by ECS cluster to access ECR
+resource "aws_vpc_endpoint" "service_endpoints" {
+  for_each = var.integration_target == "ecs" ? {
+    "ecr_api" = {
+      service_name = "com.amazonaws.${var.region}.ecr.api"
+      endpoint_type = "Interface"
+      security_group_ids = [aws_security_group.instance_sg.id]
+      subnet_ids = [aws_subnet.public_subnet.id]
+      route_table_ids = []
+      private_dns_enabled = true
+    }
+    "ecr_dkr" = {
+      service_name = "com.amazonaws.${var.region}.ecr.dkr"
+      endpoint_type = "Interface"
+      security_group_ids = [aws_security_group.instance_sg.id]
+      subnet_ids = [aws_subnet.public_subnet.id]
+      route_table_ids = []
+      private_dns_enabled = true
+    }
+    "s3" = {
+      service_name = "com.amazonaws.${var.region}.s3"
+      endpoint_type = "Gateway"
+      security_group_ids = []
+      subnet_ids = []
+      route_table_ids = [aws_route_table.public_rt.id]
+      private_dns_enabled = false
+    }
+    "cloudwatch_logs" = {
+      service_name = "com.amazonaws.${var.region}.logs"
+      endpoint_type = "Interface"
+      security_group_ids = [aws_security_group.instance_sg.id]
+      subnet_ids = [aws_subnet.public_subnet.id]
+      route_table_ids = []
+      private_dns_enabled = true
+    }
+    "cloudwatch_metrics" = {
+      service_name = "com.amazonaws.${var.region}.monitoring"
+      endpoint_type = "Interface"
+      security_group_ids = [aws_security_group.instance_sg.id]
+      subnet_ids = [aws_subnet.public_subnet.id]
+      route_table_ids = []
+      private_dns_enabled = true
+    }
+  } : {}
+
+  vpc_id            = aws_vpc.main_vpc.id
+  service_name      = each.value.service_name
+  vpc_endpoint_type = each.value.endpoint_type
+
+  security_group_ids = each.value.security_group_ids
+  subnet_ids         = each.value.subnet_ids
+  route_table_ids    = each.value.route_table_ids
+
+  private_dns_enabled = each.value.private_dns_enabled
+
+  tags = {
+    Name = "${var.name}-${each.key}-endpoint"
+  }
 }

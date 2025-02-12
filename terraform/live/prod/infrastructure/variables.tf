@@ -8,10 +8,21 @@ variable "tf_state_name" {
   default     = "default"
 }
 
+variable "gitlab_project_id" {
+  description = "Gitlab project id to setup terraform state"
+  type        = string
+  default     = "6"
+}
+
 variable "region" {
   description = "AWS region"
   type        = string
   default     = "eu-west-3"
+}
+
+variable "application_name" {
+  type    = string
+  default = "counter-api"
 }
 
 variable "integration_target" {

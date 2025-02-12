@@ -75,3 +75,14 @@ variable "ingress_rules" {
     }
   ]
 }
+
+variable "bastion_cidr_ipv4" {
+  description = "CIDR block for Bastion SSH access"
+  type        = string
+  default     = "127.0.0.1/32"  # Placeholder IP
+}
+
+variable "integration_target" {
+  description = "Integration target for the API gateway (lambda or ECS)"
+  type        = string
+}

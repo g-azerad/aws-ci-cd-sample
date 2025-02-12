@@ -1,6 +1,8 @@
 region                     = "eu-west-3"
 environment                = "prod"
+application_name           = "counter-api"
 tf_state_name              = "default"
+gitlab_project_id          = "6"
 integration_target         = "lambda"
 ssh_public_key             = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPXQTe+bt2/WREsoHZxeR/XcZJwlNTaw55G1L/yMRpy3"
 db_user_secret_name        = "db_user_secret"

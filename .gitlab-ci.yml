@@ -247,7 +247,7 @@ generate-ecr-token:
     - curl -sL -o age-${AGE_VERSION}-linux-amd64.tar.gz "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-amd64.tar.gz"
     - tar xzf age-${AGE_VERSION}-linux-amd64.tar.gz && mv age age_folder && mv age_folder/age .
   script:
-    - echo "$(aws ecr get-login-password)" | age -p --passphrase "$AGE_SECRET_KEY" > token.txt
+    - echo "$(aws ecr get-login-password)" | ./age -p --passphrase "$AGE_SECRET_KEY" > token.txt
     
 package-docker-ecr:
   stage: package
@@ -271,7 +271,7 @@ package-docker-ecr:
       {
         \"auths\":{
           \"${AWS_ECR_REGISTRY}\":{
-            \"auth\":\"$(printf "%s:%s" "${AWS_ECR_USER}" "$(age -d --passphrase "$AGE_SECRET_KEY" token.txt)" | base64 | tr -d '\n')\"
+            \"auth\":\"$(printf "%s:%s" "${AWS_ECR_USER}" "$(./age -d --passphrase "$AGE_SECRET_KEY" token.txt)" | base64 | tr -d '\n')\"
           }
         }
       }" > /kaniko/.docker/config.json
@@ -304,7 +304,7 @@ package-docker-root-ecr:
       {
         \"auths\":{
           \"${AWS_ECR_REGISTRY}\":{
-            \"auth\":\"$(printf "%s:%s" "${AWS_ECR_USER}" "$(age -d --passphrase "$AGE_SECRET_KEY" token.txt)" | base64 | tr -d '\n')\"
+            \"auth\":\"$(printf "%s:%s" "${AWS_ECR_USER}" "$(./age -d --passphrase "$AGE_SECRET_KEY" token.txt)" | base64 | tr -d '\n')\"
           }
         }
       }" > /kaniko/.docker/config.json

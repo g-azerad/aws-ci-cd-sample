@@ -173,6 +173,9 @@ package-docker:
       changes: !reference [.changes, package]
     - if: !reference [.rules, latest]
       changes: !reference [.changes, package]
+  # No dependencies with generate-ecr-token job here
+  # This is just for job execution ordering
+  needs: ["generate-ecr-token"]
   script:
     - if [ X"$CI_COMMIT_TAG" == "X" ]; then IMAGE_TAG="latest"; else IMAGE_TAG=$CI_COMMIT_TAG; fi
     - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
@@ -203,6 +206,9 @@ package-docker-root:
       changes: !reference [.changes, package]
     - if: !reference [.rules, latest]
       changes: !reference [.changes, package]
+  # No dependencies with generate-ecr-token job here
+  # This is just for job execution ordering
+  needs: ["generate-ecr-token"]
   script:
     - if [ X"$CI_COMMIT_TAG" == "X" ]; then IMAGE_TAG="latest"; else IMAGE_TAG=$CI_COMMIT_TAG; fi
     - echo "Info - the image will be pushed with '$IMAGE_TAG' tag"
@@ -238,7 +244,7 @@ generate-ecr-token:
     expire_in: 1 hour
   before_script:
     # Downloading age to encrypt the token
-    - wget -q https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-amd64.tar.gz
+    - curl -sL -o age-${AGE_VERSION}-linux-amd64.tar.gz "https://github.com/FiloSottile/age/releases/download/${AGE_VERSION}/age-${AGE_VERSION}-linux-amd64.tar.gz"
     - tar xzf age-${AGE_VERSION}-linux-amd64.tar.gz && mv age age_folder && mv age_folder/age .
   script:
     - echo "$(aws ecr get-login-password)" | age -p --passphrase "$AGE_SECRET_KEY" > token.txt

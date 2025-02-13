@@ -84,7 +84,7 @@ module "lambda" {
   db_username               = var.db_username
   db_port                   = var.db_port
   db_host                   = module.rds.db_host
-  api_gateway_execution_arn = module.api_gateway.api_gateway_execution_arn
+  api_gateway_execution_arn = module.api_gateway[0].api_gateway_execution_arn
   db_connect_iam_policy_arn = module.rds.db_connect_iam_policy_arn
 }
 
@@ -94,7 +94,6 @@ module "ecs" {
   source                    = "../../../modules/ecs"
   region                    = var.region
   application_name          = var.application_name
-  # secrets_iam_policy_arn    = module.lambda.secrets_iam_policy_arn
   db_connect_iam_policy_arn = module.rds.db_connect_iam_policy_arn
   ecs_service_name          = "${var.application_name}-${var.environment}-ecs"
   vpc_id                    = module.network.vpc_id
@@ -119,7 +118,6 @@ module "ecs_cloudmap" {
   source                    = "../../../modules/ecs_cloudmap"
   region                    = var.region
   application_name          = var.application_name
-  # secrets_iam_policy_arn    = module.lambda.secrets_iam_policy_arn
   db_connect_iam_policy_arn = module.rds.db_connect_iam_policy_arn
   ecs_service_name          = "${var.application_name}-${var.environment}-ecs"
   vpc_id                    = module.network.vpc_id
@@ -140,8 +138,21 @@ module "ecs_cloudmap" {
 
 # Creating the API gateway
 module "api_gateway" {
+  count                    = (var.api_gateway_type == "rest" ? 1 : 0)
   source                   = "../../../modules/api_gateway"
   api_name                 = "${var.application_name}-${var.environment}"
+  integration_target       = var.integration_target
+  lambda_invoke_arn        = (var.integration_target == "lambda" ? module.lambda[0].lambda_invoke_arn : null)
+  ecs_vpc_link_id          = (var.integration_target == "ecs" ? module.ecs[0].ecs_vpc_link_id : null)
+  ecs_lb_uri               = (var.integration_target == "ecs" ? module.ecs[0].ecs_lb_uri : null)
+}
+
+module "api_gateway_v2" {
+  count                    = (var.api_gateway_type == "v2" ? 1 : 0)
+  source                   = "../../../modules/api_gateway_v2"
+  api_name                 = "${var.application_name}-${var.environment}"
+  public_subnet_id         = module.network.public_subnet_id
+  security_group_id        = module.network.instance_sg_id
   integration_target       = var.integration_target
   lambda_invoke_arn        = (var.integration_target == "lambda" ? module.lambda[0].lambda_invoke_arn : null)
   ecs_vpc_link_id          = (var.integration_target == "ecs" ? module.ecs[0].ecs_vpc_link_id : null)

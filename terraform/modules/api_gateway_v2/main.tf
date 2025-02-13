@@ -4,8 +4,8 @@ resource "aws_apigatewayv2_api" "api_gateway" {
   protocol_type = "HTTP"
 }
 
-# Create a VPC link (only used by ECS integration)
-resource "aws_apigatewayv2_vpc_link" "vpc_link" {
+# Create VPC link for either ECS or ECS cloudmap integrations
+resource "aws_apigatewayv2_vpc_link" "vpc_link_ecs" {
   count = var.integration_target == "ecs" ? 1 : 0
 
   name         = "${var.api_name}-ecs-vpc-link"
@@ -13,6 +13,13 @@ resource "aws_apigatewayv2_vpc_link" "vpc_link" {
   security_group_ids = [var.security_group_id]
 }
 
+resource "aws_apigatewayv2_vpc_link" "vpc_link_ecs_cloudmap" {
+  count = var.integration_target == "ecs_cloudmap" ? 1 : 0
+
+  name         = "${var.api_name}-ecs-cloudmap-vpc-link"
+  subnet_ids         = [var.public_subnet_id]
+  security_group_ids = [var.security_group_id]
+}
 
 # The API integration depends from the target (lambda or ECS)
 resource "aws_apigatewayv2_integration" "lambda_integration" {
@@ -31,7 +38,7 @@ resource "aws_apigatewayv2_integration" "ecs_integration" {
   integration_uri    = "${var.ecs_lb_uri}/{proxy}"
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link[0].vpc_link.id
+  connection_id      = aws_apigatewayv2_vpc_link.vpc_link_ecs[0].id
 
   request_parameters = {
     "overwrite:method.request.path.proxy" = "$request.path"
@@ -47,21 +54,27 @@ resource "aws_apigatewayv2_integration" "ecs_cloudmap_integration" {
   integration_uri    = var.ecs_cloudmap_service_arn
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
-  connection_id      = aws_apigatewayv2_vpc_link[0].vpc_link.id
+  connection_id      = aws_apigatewayv2_vpc_link.vpc_link_ecs_cloudmap[0].id
   payload_format_version = "1.0"
 }
 
 # Definition of the route
 
+locals {
+  integration_target_ids = {
+    lambda       = var.integration_target == "lambda" ? aws_apigatewayv2_integration.lambda_integration[0].id : null
+    ecs          = var.integration_target == "ecs" ? aws_apigatewayv2_integration.ecs_integration[0].id : null
+    ecs_cloudmap = var.integration_target == "ecs_cloudmap" ? aws_apigatewayv2_integration.ecs_cloudmap_integration[0].id : null
+  }
+
+  integration_target_id = lookup(local.integration_target_ids, var.integration_target)
+}
+
 resource "aws_apigatewayv2_route" "proxy_route" {
   api_id    = aws_apigatewayv2_api.api_gateway.id
   route_key = "ANY /{proxy+}"
 
-  target = var.integration_target == "lambda" ? 
-    "integrations/${aws_apigatewayv2_integration.lambda_integration[0].id}" :
-    var.integration_target == "ecs" ? 
-    "integrations/${aws_apigatewayv2_integration.ecs_integration[0].id}" :
-    "integrations/${aws_apigatewayv2_integration.ecs_cloudmap_integration[0].id}"
+  target = "integrations/${local.integration_target_id}"
 }
 
 # Defining deployment with logging enabled

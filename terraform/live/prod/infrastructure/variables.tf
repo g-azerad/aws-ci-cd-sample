@@ -31,6 +31,12 @@ variable "integration_target" {
   default     = "lambda"
 }
 
+variable "api_gateway_type" {
+  description = "AWS API gateway type"
+  type        = string
+  default     = "rest"
+}
+
 variable "ssh_public_key" {
   description = "The SSH public key to access the EC2 instances."
   type        = string

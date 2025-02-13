@@ -9,20 +9,16 @@ resource "aws_service_discovery_private_dns_namespace" "cloudmap_namespace" {
 # Cloudmap service for ECS
 resource "aws_service_discovery_service" "cloudmap_service" {
   name         = "${var.ecs_service_name}-cloudmap-service"
-  namespace_id = aws_service_discovery_private_dns_namespace.cloudmap_namespace.id
 
   dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.cloudmap_namespace.id
     dns_records {
-      type = "SRV"
+      type = "A"
       ttl  = 60
     }
+    routing_policy = "MULTIVALUE" 
   }
 
-  health_check_custom_config {
-    failure_threshold = 2
-    resource_path     = "/healthcheck"
-    type              = "HTTP"
-  }
 }
 
 # IAM role for ECS task
@@ -43,10 +39,30 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-# Attach existing IAM policy to access secrets manager
+# Define policy to access secrets manager and attach it
+data "aws_secretsmanager_secret" "db_user_secret" {
+  name = var.db_user_secret_name
+}
+
+resource "aws_iam_policy" "ecs_secrets_policy" {
+  name        = "${var.ecs_service_name}-ecs-secrets-policy"
+  description = "Policy to access Secrets Manager"
+  policy      = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "secretsmanager:GetSecretValue",
+        Effect = "Allow",
+        Resource = data.aws_secretsmanager_secret.db_user_secret.arn
+      }
+    ]
+  })
+}
+
+# Attach IAM policy to access secrets manager
 resource "aws_iam_role_policy_attachment" "task_role_secrets_manager_access" {
   role       = aws_iam_role.ecs_task_role.name
-  policy_arn = var.secrets_iam_policy_arn
+  policy_arn = aws_iam_policy.ecs_secrets_policy.arn
 }
 
 # Attach RDS db connection policy to the task role
@@ -126,13 +142,13 @@ resource "aws_ecs_task_definition" "ecs_task" {
     cpu       = 256
     memory    = 512
     essential = true
-    /*healthCheck = {
+    healthCheck = {
       command     = ["CMD-SHELL", "curl --fail http://127.0.0.1/healthcheck || exit 1"]
       interval    = 30
       timeout     = 5
-      retries     = 1
+      retries     = 2
       startPeriod = 10
-    }*/
+    }
     portMappings = [{
       containerPort = 80
       hostPort      = 80
@@ -217,6 +233,6 @@ resource "aws_ecs_service" "ecs_service" {
 
   service_registries {
     registry_arn = aws_service_discovery_service.cloudmap_service.arn
-    port         = 80
+    # port         = 80 # only required for SRV record
   }
 }

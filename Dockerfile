@@ -1,7 +1,8 @@
 ARG PYTHON_VERSION=3.12
 FROM python:${PYTHON_VERSION}-slim
 
-RUN groupadd -r web && useradd -m -r -g web web
+RUN groupadd -r web && useradd -m -r -g web web && \
+    apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 COPY --chown=web:web app/requirements.txt /tmp/requirements.txt
 

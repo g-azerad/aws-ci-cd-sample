@@ -34,6 +34,6 @@ variable "ecs_lb_uri" {
 }
 
 variable "ecs_cloudmap_service_arn" {
-  decription = "ARN of the cloudmap service in front of the ECS running the API"
+  description = "ARN of the cloudmap service in front of the ECS running the API"
   type       = string
 }

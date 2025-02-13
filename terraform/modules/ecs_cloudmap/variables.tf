@@ -4,15 +4,15 @@ variable "region" {
   default     = "eu-west-3"
 }
 
+variable "application_name" {
+  description = "The application name which is deployed"
+  type        = string
+}
+
 variable "ecs_service_name" {
   description = "ECS service name"
   type        = string
   default     = "prod-ecs"
-}
-
-variable "secrets_iam_policy_arn" {
-  description = "ARN of the IAM policy to get the secrets"
-  type        = string
 }
 
 variable "db_connect_iam_policy_arn" {

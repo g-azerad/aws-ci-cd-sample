@@ -3,6 +3,12 @@ variable "api_name" {
   type        = string
 }
 
+variable "api_stage_name" {
+  description = "Name of the API gateway stage"
+  type        = string
+  default     = "live"
+}
+
 variable "integration_target" {
   description = "Integration target for the API gateway (lambda or ECS)"
   type        = string

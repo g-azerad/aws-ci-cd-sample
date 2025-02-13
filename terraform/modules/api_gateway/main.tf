@@ -52,7 +52,7 @@ resource "aws_api_gateway_deployment" "deployment" {
 resource "aws_api_gateway_stage" "api_stage" {
   rest_api_id           = aws_api_gateway_rest_api.api_gateway.id
   deployment_id         = aws_api_gateway_deployment.deployment.id
-  stage_name            = "prod"
+  stage_name            = var.api_stage_name
   description           = "Production stage"
   cache_cluster_enabled = false
 

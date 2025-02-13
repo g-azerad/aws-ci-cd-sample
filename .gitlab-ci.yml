@@ -35,7 +35,6 @@ workflow:
     - .gitlab-ci.yml
     - Dockerfile
   package:
-    - .gitlab-ci.yml
     - Dockerfile
     - Dockerfile-root
     - app/*.py
@@ -390,9 +389,17 @@ deploy-app-layer:
   }
 
   function setupSshTunnel(){
+    # Installing OpenSSH
+    apt-get update && apt-get install -y --no-install-recommends openssh-client
+    rm -rf /var/lib/apt/lists/*
     mkdir -p ~/.ssh
-    echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_aws_ed25519_prod
-    chmod 600 ~/.ssh/id_aws_ed25519_prod
+    # Adding ssh key to the configuration
+    echo "$SSH_PRIVATE_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519
+    chmod 600 ~/.ssh/id_ed25519
+    echo "$SSH_PUBLIC_KEY_BASE64" | base64 -d > ~/.ssh/id_ed25519.pub
+    # Adding Bastion host fingerprint
+    ssh-keyscan -H $BASTION_HOST >> ~/.ssh/known_hosts || true
+    # Setting up the SSH tunnel configuration
     mv "$SSH_TUNNEL_CONFIG" ~/.ssh/config
     ls -l ~/.ssh
     cat ~/.ssh/config
@@ -404,7 +411,8 @@ deploy-db:
   stage: deploy
   environment: prod
   image: 
-    name: ${CI_REGISTRY_IMAGE}/liquibase:latest
+    # name: ${CI_REGISTRY_IMAGE}/liquibase:latest
+    name: liquibase/liquibase:latest
     entrypoint: [""]
   rules:
     - if: !reference [.rules, tag_release]
@@ -415,8 +423,8 @@ deploy-db:
     - if: !reference [.rules, deploy_latest]
   script:
     - *functions
-    # - setupSshTunnel
-    - ssh -f aws-bastion -N
+    - setupSshTunnel
+    # - ssh -f aws-bastion -N
     - isRollback
     - isUpToDate
     - liquibase checks run

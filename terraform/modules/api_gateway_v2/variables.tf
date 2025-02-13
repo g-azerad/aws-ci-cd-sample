@@ -3,6 +3,12 @@ variable "api_name" {
   type        = string
 }
 
+variable "api_stage_name" {
+  description = "Name of the API gateway stage"
+  type        = string
+  default     = "live"
+}
+
 variable "public_subnet_id" {
   description = "Public subnet id for the running application."
   type        = string

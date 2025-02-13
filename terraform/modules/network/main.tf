@@ -164,7 +164,7 @@ resource "aws_vpc_endpoint" "secretsmanager_endpoint" {
 
 # VPC endpoints required by ECS cluster to access ECR
 resource "aws_vpc_endpoint" "service_endpoints" {
-  for_each = var.integration_target == "ecs" ? {
+  for_each = (var.integration_target == "ecs" || var.integration_target == "ecs_cloudmap") ? {
     "ecr_api" = {
       service_name = "com.amazonaws.${var.region}.ecr.api"
       endpoint_type = "Interface"

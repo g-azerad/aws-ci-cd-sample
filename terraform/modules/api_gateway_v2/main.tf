@@ -51,11 +51,17 @@ resource "aws_apigatewayv2_integration" "ecs_cloudmap_integration" {
 
   api_id             = aws_apigatewayv2_api.api_gateway.id
   integration_type   = "HTTP_PROXY"
+  # integration_uri    = "${var.ecs_cloudmap_service_arn}?stage=${var.api_stage_name}"
   integration_uri    = var.ecs_cloudmap_service_arn
   integration_method = "ANY"
   connection_type    = "VPC_LINK"
   connection_id      = aws_apigatewayv2_vpc_link.vpc_link_ecs_cloudmap[0].id
   payload_format_version = "1.0"
+
+  # We remove the stage from the URL path transmitted to ECS
+  request_parameters = {
+    "overwrite:path" = "$request.path"
+  }
 }
 
 # Definition of the route
@@ -81,7 +87,7 @@ resource "aws_apigatewayv2_route" "proxy_route" {
 
 resource "aws_apigatewayv2_stage" "api_stage" {
   api_id      = aws_apigatewayv2_api.api_gateway.id
-  name        = "live"
+  name        = var.api_stage_name
   auto_deploy = true
 
   access_log_settings {

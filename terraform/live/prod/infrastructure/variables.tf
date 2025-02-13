@@ -37,6 +37,12 @@ variable "api_gateway_type" {
   default     = "rest"
 }
 
+variable "api_stage_name" {
+  description = "Name of the API gateway stage"
+  type        = string
+  default     = "live"
+}
+
 variable "ssh_public_key" {
   description = "The SSH public key to access the EC2 instances."
   type        = string

@@ -13,12 +13,15 @@ resource "aws_service_discovery_service" "cloudmap_service" {
   dns_config {
     namespace_id = aws_service_discovery_private_dns_namespace.cloudmap_namespace.id
     dns_records {
-      type = "A"
+      type = "SRV"
       ttl  = 60
     }
     routing_policy = "MULTIVALUE" 
   }
 
+  health_check_custom_config {
+    failure_threshold = 2
+  }
 }
 
 # IAM role for ECS task
@@ -233,6 +236,6 @@ resource "aws_ecs_service" "ecs_service" {
 
   service_registries {
     registry_arn = aws_service_discovery_service.cloudmap_service.arn
-    # port         = 80 # only required for SRV record
+    port         = 80 # only required for SRV record
   }
 }
